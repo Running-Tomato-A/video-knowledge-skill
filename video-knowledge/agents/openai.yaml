@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Knowledge"
+  short_description: "Turn videos into evidence-linked knowledge assets"
+  default_prompt: "Use $video-knowledge to analyze this video for absorption, judgment, or project application."

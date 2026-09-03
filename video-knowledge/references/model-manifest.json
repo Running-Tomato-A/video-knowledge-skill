@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "default_model": {
+    "repo_id": "Systran/faster-whisper-small",
+    "revision": "536b0662742c02347bc0e980a01041f333bce120",
+    "license": "MIT",
+    "source_url": "https://huggingface.co/Systran/faster-whisper-small",
+    "snapshot_bytes": 486212372,
+    "files": [
+      {
+        "name": "config.json",
+        "bytes": 2370,
+        "sha256": "B55496AC7940A7AE47D2C01EAB40EDFD8701FEEC1229D9CCE3B40014383FB828"
+      },
+      {
+        "name": "model.bin",
+        "bytes": 483546902,
+        "sha256": "3E305921506D8872816023E4C273E75D2419FB89B24DA97B4FE7BCE14170D671"
+      },
+      {
+        "name": "tokenizer.json",
+        "bytes": 2203239,
+        "sha256": "FB7B63191E9BB045082C79FD742A3106A12C99513AB30DF4A0D47FA6CB6FD0AB"
+      },
+      {
+        "name": "vocabulary.txt",
+        "bytes": 459861,
+        "sha256": "34CE3FE1C5041027B3F8D42912270993F986DBC4BB34CF27F951E34A1E453913"
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local runtime and secrets
+.env
+.env.*
+*.log
+*.tmp
+*.backup-*
+config.json
+
+# Models, downloads, caches, and generated outputs
+models/
+downloads/
+cache/
+runtime/
+video-knowledge-output/
+*.bin
+*.mp4
+*.mov
+*.mkv
+*.mp3
+*.wav
+*.srt
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
