@@ -61,7 +61,14 @@ def sha256(path: Path) -> str:
 
 
 def files_below(root: Path) -> list[Path]:
-    return sorted((path for path in root.rglob("*") if path.is_file()), key=lambda p: p.as_posix())
+    return sorted(
+        (
+            path
+            for path in root.rglob("*")
+            if path.is_file() and ".git" not in path.relative_to(root).parts
+        ),
+        key=lambda p: p.as_posix(),
+    )
 
 
 def tree_fingerprint(root: Path) -> dict[str, str]:

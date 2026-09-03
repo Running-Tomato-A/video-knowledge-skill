@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning for public preview releases. The technical Skill identifier remains `video-knowledge`; a future public brand or IP name may change the display layer without changing this identifier.
 
+## 0.1.0-preview.3 — 2026-09-04
+
+### Fixed
+
+- GitHub Actions now resolves the available Python 3.12 toolchain on the current Windows runner instead of requesting an unavailable patch release.
+- Release validation ignores Git metadata created by local repositories and GitHub Actions checkouts.
+
 ## 0.1.0-preview.2 — 2026-08-31
 
 ### Added

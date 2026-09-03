@@ -20,7 +20,7 @@ jobs:
       - name: Set up verified Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12.13"
+          python-version: "3.12"
           check-latest: false
 
       - name: Validate static release and setup contract

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "generator": "video-knowledge-release-candidate-v1",
-  "release_version": "0.1.0-preview.2",
+  "release_version": "0.1.0-preview.3",
   "files": [
     {
       "path": ".github/workflows/validate.yml",
-      "bytes": 545,
-      "sha256": "881ABFE454B0FBADF49E7E8747EBE3F1A9009F3C682C9A080A4C0DA697652C73"
+      "bytes": 542,
+      "sha256": "46C76B568CC84F8C781776E919E055F95642BF02A284E24BAB2FC21DDA78DE0B"
     },
     {
       "path": ".gitignore",
@@ -15,8 +15,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 2208,
-      "sha256": "08E7979FA6DCFA4E92A045A3CF68440959205DC37CB8AC31DB46DE0646C3D040"
+      "bytes": 2505,
+      "sha256": "48971D76252AB3A9207BA7E19257E92CEBE912DE41087F50AA232228999A95F4"
     },
     {
       "path": "DEPENDENCY_LICENSES.md",
@@ -56,7 +56,7 @@
     {
       "path": "VERSION",
       "bytes": 16,
-      "sha256": "EFDD0F34E6CF518A11A700BA7BEF68869236C8CAAADF1E1E4F647B6F8EC47ECA"
+      "sha256": "74095E1A8C7C4DF5560B36EBA6D326A59E9FB12E9F2F0FD5C7FD82902A748EEF"
     },
     {
       "path": "examples/README.md",
@@ -65,8 +65,8 @@
     },
     {
       "path": "scripts/validate_release.py",
-      "bytes": 10666,
-      "sha256": "C27106E48D03CFC758B8FE325CCC8C7D5C61B9343AAE1FEE750F34DED0163D79"
+      "bytes": 10782,
+      "sha256": "A40F0E341FF82FFF3DA8EE855190702585F0E183EE0301F23A9159468D938ED9"
     },
     {
       "path": "video-knowledge/SKILL.md",
@@ -76,7 +76,7 @@
     {
       "path": "video-knowledge/VERSION",
       "bytes": 16,
-      "sha256": "EFDD0F34E6CF518A11A700BA7BEF68869236C8CAAADF1E1E4F647B6F8EC47ECA"
+      "sha256": "74095E1A8C7C4DF5560B36EBA6D326A59E9FB12E9F2F0FD5C7FD82902A748EEF"
     },
     {
       "path": "video-knowledge/agents/openai.yaml",
@@ -154,5 +154,5 @@
       "sha256": "A4DE45B9CC6D7DE5B0060A63662EFDE9FECEE29CBC7293EC4ED6BDC7D2E9A5B7"
     }
   ],
-  "total_bytes": 202104
+  "total_bytes": 202514
 }
