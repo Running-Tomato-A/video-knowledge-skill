@@ -2,6 +2,13 @@
 
 This project follows Semantic Versioning for public preview releases. The technical Skill identifier remains `video-knowledge`; a future public brand or IP name may change the display layer without changing this identifier.
 
+## 0.1.0-preview.4 — 2026-09-04
+
+### Fixed
+
+- Repository text files now keep LF line endings on every checkout so release-manifest hashes remain reproducible on Windows runners.
+- GitHub Actions enables Python UTF-8 mode so setup-plan JSON can include non-ASCII paths and messages.
+
 ## 0.1.0-preview.3 — 2026-09-04
 
 ### Fixed

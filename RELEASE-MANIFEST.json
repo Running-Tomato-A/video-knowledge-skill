@@ -1,12 +1,17 @@
 {
   "schema_version": 1,
   "generator": "video-knowledge-release-candidate-v1",
-  "release_version": "0.1.0-preview.3",
+  "release_version": "0.1.0-preview.4",
   "files": [
     {
+      "path": ".gitattributes",
+      "bytes": 100,
+      "sha256": "AA285972C2D59555CBF4FD550747C54FD198544F6452D5A9EF35374D79B5A331"
+    },
+    {
       "path": ".github/workflows/validate.yml",
-      "bytes": 542,
-      "sha256": "46C76B568CC84F8C781776E919E055F95642BF02A284E24BAB2FC21DDA78DE0B"
+      "bytes": 573,
+      "sha256": "C2C9E97C08F015B9DB20358046396FF05E2CC6A908F48305FAA3D94BE095773A"
     },
     {
       "path": ".gitignore",
@@ -15,8 +20,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 2505,
-      "sha256": "48971D76252AB3A9207BA7E19257E92CEBE912DE41087F50AA232228999A95F4"
+      "bytes": 2790,
+      "sha256": "54228E2FC6222EE3156840063D093F2B1478DF7E86F6CEEB622B47DBFEB7D228"
     },
     {
       "path": "DEPENDENCY_LICENSES.md",
@@ -56,7 +61,7 @@
     {
       "path": "VERSION",
       "bytes": 16,
-      "sha256": "74095E1A8C7C4DF5560B36EBA6D326A59E9FB12E9F2F0FD5C7FD82902A748EEF"
+      "sha256": "0A32083BBEBAA38564432F89F6BA18DC7E55110D8B81C041D67064755B1760F9"
     },
     {
       "path": "examples/README.md",
@@ -76,7 +81,7 @@
     {
       "path": "video-knowledge/VERSION",
       "bytes": 16,
-      "sha256": "74095E1A8C7C4DF5560B36EBA6D326A59E9FB12E9F2F0FD5C7FD82902A748EEF"
+      "sha256": "0A32083BBEBAA38564432F89F6BA18DC7E55110D8B81C041D67064755B1760F9"
     },
     {
       "path": "video-knowledge/agents/openai.yaml",
@@ -154,5 +159,5 @@
       "sha256": "A4DE45B9CC6D7DE5B0060A63662EFDE9FECEE29CBC7293EC4ED6BDC7D2E9A5B7"
     }
   ],
-  "total_bytes": 202514
+  "total_bytes": 202930
 }

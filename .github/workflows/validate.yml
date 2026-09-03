@@ -12,6 +12,8 @@ jobs:
   release-contract:
     runs-on: windows-latest
     timeout-minutes: 10
+    env:
+      PYTHONUTF8: "1"
 
     steps:
       - name: Check out repository
