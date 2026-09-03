@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generator": "video-knowledge-release-candidate-v1",
-  "release_version": "0.1.0-preview.4",
+  "release_version": "0.1.0-preview.5",
   "files": [
     {
       "path": ".gitattributes",
@@ -20,8 +20,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 2790,
-      "sha256": "54228E2FC6222EE3156840063D093F2B1478DF7E86F6CEEB622B47DBFEB7D228"
+      "bytes": 2929,
+      "sha256": "61F74D8955AC9557B1BD15B5256B0BE151569011B0F0556C6C0CCF1D2F10BEF0"
     },
     {
       "path": "DEPENDENCY_LICENSES.md",
@@ -45,8 +45,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 4022,
-      "sha256": "5009C7D47A8EA45BB0110BC694FA9BA12580AC6668465E12AD94A3A526D1D2D8"
+      "bytes": 4157,
+      "sha256": "E4DC7A9DCDAA9381403F1A04AC6F9143210E810973710230F39FFDC6A32A36A2"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -61,7 +61,7 @@
     {
       "path": "VERSION",
       "bytes": 16,
-      "sha256": "0A32083BBEBAA38564432F89F6BA18DC7E55110D8B81C041D67064755B1760F9"
+      "sha256": "A0A73947016ECC71EBA6A3A403D351695202A3A397DF2AA9E3FD34C2E08E5413"
     },
     {
       "path": "examples/README.md",
@@ -81,7 +81,7 @@
     {
       "path": "video-knowledge/VERSION",
       "bytes": 16,
-      "sha256": "0A32083BBEBAA38564432F89F6BA18DC7E55110D8B81C041D67064755B1760F9"
+      "sha256": "A0A73947016ECC71EBA6A3A403D351695202A3A397DF2AA9E3FD34C2E08E5413"
     },
     {
       "path": "video-knowledge/agents/openai.yaml",
@@ -159,5 +159,5 @@
       "sha256": "A4DE45B9CC6D7DE5B0060A63662EFDE9FECEE29CBC7293EC4ED6BDC7D2E9A5B7"
     }
   ],
-  "total_bytes": 202878
+  "total_bytes": 203152
 }

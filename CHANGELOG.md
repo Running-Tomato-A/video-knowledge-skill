@@ -2,6 +2,12 @@
 
 This project follows Semantic Versioning for public preview releases. The technical Skill identifier remains `video-knowledge`; a future public brand or IP name may change the display layer without changing this identifier.
 
+## 0.1.0-preview.5 — 2026-09-04
+
+### Changed
+
+- README now records the project collaboration between Running-Tomato-A and OpenAI Codex.
+
 ## 0.1.0-preview.4 — 2026-09-04
 
 ### Fixed

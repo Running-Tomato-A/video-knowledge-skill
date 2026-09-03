@@ -74,9 +74,9 @@ python video-knowledge/scripts/setup.py --apply --yes
 
 项目代码采用 MIT License。运行时会使用或下载 Faster-Whisper、CTranslate2、Hugging Face Hub、Systran Faster-Whisper Small 模型以及 FFmpeg。来源与许可证边界见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-## 作者
+## 作者与协作
 
-由 [Running-Tomato-A](https://github.com/Running-Tomato-A) 创建并维护。
+由 [Running-Tomato-A](https://github.com/Running-Tomato-A) 创建并维护，与 [OpenAI Codex](https://developers.openai.com/codex/) 协作完成产品设计、Skill 流程、实现、测试和发布。
 
 ## 许可证
 
