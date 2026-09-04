@@ -2,6 +2,19 @@
 
 This project follows Semantic Versioning for public preview releases. The technical Skill identifier remains `video-knowledge`; a future public brand or IP name may change the display layer without changing this identifier.
 
+## 0.1.0-preview.6 — 2026-09-04
+
+### Fixed
+
+- Setup Plan now blocks unverified platforms and Python versions instead of asking for confirmation that Apply cannot honor.
+- Windows Plan and Apply now agree on the verified Python 3.12 requirement.
+- Human and JSON plans expose structured platform blockers and safe next steps.
+
+### Added
+
+- Read-only Apple Silicon preflight for Python 3.12, Homebrew, FFmpeg／FFprobe, disk space, and privacy-safe platform evidence.
+- Direct README links to the installation contract and remediation protocol.
+
 ## 0.1.0-preview.5 — 2026-09-04
 
 ### Changed

@@ -50,6 +50,14 @@ Never replace the original error with a generic “installation failed.”
 
 Detect `Darwin` plus `arm64` or `x86_64` before selecting a recipe.
 
+First run the read-only evidence collector and return its JSON report:
+
+```text
+python scripts/macos_preflight.py --workspace /absolute/workspace
+```
+
+Do not install or change anything during this first pass. The report deliberately excludes serial numbers, hardware UUIDs, hostnames, and account tokens.
+
 Preferred order:
 
 1. Reuse a compatible Python and FFmpeg already on PATH.

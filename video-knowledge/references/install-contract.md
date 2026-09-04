@@ -17,6 +17,20 @@ The plan must separate:
 
 If no required action remains, say that the environment is already ready and do not ask for installation confirmation.
 
+The plan must return `blocked`, set `confirmation_required: false`, and list structured `blockers` when the detected platform, architecture, or Python version has no verified Apply recipe. It must not show an unverified platform as merely waiting for confirmation.
+
+## Platform evidence
+
+The current verified Apply target is Windows x64 with Python 3.12. A different Python minor version must be blocked during Plan if Apply would reject it later.
+
+macOS Apple Silicon is an evidence-gathering target, not a supported Apply target. Before installing anything, run:
+
+```text
+python scripts/macos_preflight.py --workspace /absolute/workspace
+```
+
+The preflight is read-only and reports architecture, non-sensitive OS information, available Python 3.12, Homebrew, FFmpeg／FFprobe, workspace disk space, and remaining blockers. It must not install Homebrew, Rosetta, Python, FFmpeg, packages, or models. Generate a macOS arm64 lock only after a clean isolated-environment install and transcription/frame-extraction smoke test succeed on real hardware. Intel macOS requires separate evidence and a separate lock.
+
 ## Apply
 
 `--apply` is a mutating mode and must not be inferred from `--plan`. Before Apply, show one concise confirmation page and obtain authorization for the stated paths, downloads, and system changes. The caller must pass `--yes`; absence of that flag must leave the filesystem unchanged.

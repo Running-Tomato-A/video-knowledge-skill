@@ -86,6 +86,7 @@ def require_files(root: Path, errors: list[str]) -> None:
         "CHANGELOG.md", "UPGRADING.md", "video-knowledge/SKILL.md",
         "video-knowledge/VERSION", "video-knowledge/requirements-windows-py312.lock",
         "video-knowledge/scripts/setup.py", "video-knowledge/scripts/run_transcribe.py",
+        "video-knowledge/scripts/macos_preflight.py",
     ]
     for relative in required:
         if not (root / relative).is_file():
@@ -218,6 +219,83 @@ def run_setup_contract(root: Path, errors: list[str]) -> dict[str, Any]:
         errors.append("blank setup plan did not require confirmation")
     if before != tree_fingerprint(root):
         errors.append("read-only setup plan changed the candidate tree")
+
+    mac_plan = subprocess.run(
+        [
+            sys.executable,
+            str(setup),
+            "--plan",
+            "--simulate-empty",
+            "--simulate-platform",
+            "Darwin",
+            "--simulate-architecture",
+            "arm64",
+            "--simulate-python-version",
+            "3.13.13",
+            "--json",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+        env=environment,
+    )
+    try:
+        mac_payload = json.loads(mac_plan.stdout)
+    except json.JSONDecodeError:
+        mac_payload = {}
+        errors.append(f"macOS setup plan did not return JSON: {mac_plan.stderr or mac_plan.stdout}")
+    mac_codes = {item.get("code") for item in mac_payload.get("blockers", [])}
+    if mac_plan.returncode != 2:
+        errors.append(f"macOS setup plan exit code: {mac_plan.returncode}")
+    if mac_payload.get("status") != "blocked" or mac_payload.get("confirmation_required"):
+        errors.append("unverified macOS plan was not blocked")
+    if {"platform_not_verified", "python_version_not_verified"} - mac_codes:
+        errors.append("macOS plan did not report platform and Python blockers")
+
+    windows_python_plan = subprocess.run(
+        [
+            sys.executable,
+            str(setup),
+            "--plan",
+            "--simulate-empty",
+            "--simulate-platform",
+            "Windows",
+            "--simulate-architecture",
+            "AMD64",
+            "--simulate-python-version",
+            "3.13.1",
+            "--json",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+        env=environment,
+    )
+    try:
+        windows_python_payload = json.loads(windows_python_plan.stdout)
+    except json.JSONDecodeError:
+        windows_python_payload = {}
+        errors.append(
+            "Windows Python-mismatch plan did not return JSON: "
+            f"{windows_python_plan.stderr or windows_python_plan.stdout}"
+        )
+    windows_codes = {
+        item.get("code") for item in windows_python_payload.get("blockers", [])
+    }
+    if windows_python_plan.returncode != 2:
+        errors.append(f"Windows Python-mismatch plan exit code: {windows_python_plan.returncode}")
+    if windows_python_payload.get("status") != "blocked":
+        errors.append("Windows Python 3.13 plan was not blocked")
+    if "python_version_not_verified" not in windows_codes:
+        errors.append("Windows Python 3.13 plan did not report the version blocker")
+    if "platform_not_verified" in windows_codes:
+        errors.append("verified Windows x64 was incorrectly marked as an unsupported platform")
+    if before != tree_fingerprint(root):
+        errors.append("simulated platform plans changed the candidate tree")
 
     with tempfile.TemporaryDirectory(prefix="video-knowledge-ci-") as temporary:
         blocked_root = Path(temporary) / "unauthorized"

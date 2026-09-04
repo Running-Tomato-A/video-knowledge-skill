@@ -49,6 +49,14 @@ Valid stages and downloads must be reused after interruption or on repeat instal
 
 When Setup or Doctor returns a structured failure, read [references/remediation-protocol.md](references/remediation-protocol.md). Diagnose only the failed component, prefer official sources, keep repairs bounded, and obtain authorization for system-level changes.
 
+On macOS, `setup.py --apply` must remain blocked until a real-machine platform lock exists. Read the macOS section of the remediation protocol and run the read-only preflight before proposing any installation:
+
+```text
+python scripts/macos_preflight.py --workspace /absolute/workspace
+```
+
+Do not treat a successful preflight as installation authorization or as evidence that macOS is supported. Return the report for review before installing Homebrew, Rosetta, Python, FFmpeg, or runtime packages.
+
 Run the read-only full Doctor after installation, on first use, after storage/model changes, or while troubleshooting:
 
 ```text

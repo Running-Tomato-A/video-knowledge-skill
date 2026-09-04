@@ -31,6 +31,92 @@ PYTHON_ENV_ESTIMATE_MB = 300
 FFMPEG_ESTIMATE_MB = 150
 
 
+def version_triplet(value: str) -> tuple[int, int, int]:
+    match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?", value)
+    if not match:
+        return (0, 0, 0)
+    return tuple(int(part or 0) for part in match.groups())  # type: ignore[return-value]
+
+
+def plan_platform(args: argparse.Namespace) -> tuple[str, str, str]:
+    if args.simulate_empty:
+        return (
+            args.simulate_platform or platform.system(),
+            args.simulate_architecture or platform.machine(),
+            args.simulate_python_version or platform.python_version(),
+        )
+    if any(
+        value
+        for value in (
+            args.simulate_platform,
+            args.simulate_architecture,
+            args.simulate_python_version,
+        )
+    ):
+        raise ValueError("Platform simulation options require --simulate-empty.")
+    return platform.system(), platform.machine(), platform.python_version()
+
+
+def installation_blockers(
+    system: str,
+    architecture: str,
+    python_version: str,
+) -> list[dict[str, Any]]:
+    normalized_arch = architecture.lower()
+    blockers: list[dict[str, Any]] = []
+    windows_verified = system == "Windows" and normalized_arch in ("amd64", "x86_64")
+
+    if not windows_verified:
+        if system == "Darwin" and normalized_arch in ("arm64", "aarch64"):
+            next_step = (
+                "Run scripts/macos_preflight.py on the target Mac and return its JSON report; "
+                "do not bypass Apply until a verified macOS arm64 dependency lock exists."
+            )
+        elif system == "Darwin":
+            next_step = (
+                "Collect a separate Intel Mac preflight and dependency lock; Apple Silicon "
+                "evidence cannot be reused for x86_64."
+            )
+        else:
+            next_step = "Complete a clean-environment test and platform-specific dependency lock."
+        blockers.append(
+            {
+                "code": "platform_not_verified",
+                "detail": f"Apply is verified only for Windows x64; detected {system} {architecture}.",
+                "supported_fixes": [next_step],
+            }
+        )
+
+    major, minor, _ = version_triplet(python_version)
+    if windows_verified and (major, minor) != (3, 12):
+        blockers.append(
+            {
+                "code": "python_version_not_verified",
+                "detail": (
+                    f"Windows Apply requires Python 3.12 x64; detected Python {python_version}."
+                ),
+                "supported_fixes": [
+                    "Install or select Python 3.12 x64, then rerun the read-only plan."
+                ],
+            }
+        )
+    elif system == "Darwin" and (major, minor) != (3, 12):
+        blockers.append(
+            {
+                "code": "python_version_not_verified",
+                "detail": (
+                    "The macOS experimental recipe targets an isolated Python 3.12 environment; "
+                    f"detected Python {python_version}."
+                ),
+                "supported_fixes": [
+                    "Keep the existing Python unchanged and identify an available Python 3.12 "
+                    "interpreter in the macOS preflight report."
+                ],
+            }
+        )
+    return blockers
+
+
 def redact_sensitive_text(value: str) -> str:
     text = re.sub(
         r"(?i)\b(https?://)([^/\s:@]+):([^@\s/]+)@",
@@ -101,6 +187,19 @@ def parse_args() -> argparse.Namespace:
         "--simulate-empty",
         action="store_true",
         help="Developer test: plan against a synthetic blank machine without changing it.",
+    )
+    parser.add_argument(
+        "--simulate-platform",
+        choices=("Windows", "Darwin", "Linux"),
+        help="Developer test: override the platform only with --simulate-empty.",
+    )
+    parser.add_argument(
+        "--simulate-architecture",
+        help="Developer test: override the architecture only with --simulate-empty.",
+    )
+    parser.add_argument(
+        "--simulate-python-version",
+        help="Developer test: override the Python version only with --simulate-empty.",
     )
     return parser.parse_args()
 
@@ -178,6 +277,7 @@ def synthetic_empty_report(
     workspace: Path,
     paths: dict[str, dict[str, Any]],
     config_path: Path,
+    python_version: str,
 ) -> dict[str, Any]:
     checks = [
         {
@@ -185,7 +285,7 @@ def synthetic_empty_report(
             "label": "Python",
             "status": "pass",
             "required": True,
-            "detail": f"{platform.python_implementation()} {platform.python_version()}",
+            "detail": f"{platform.python_implementation()} {python_version}",
             "path": sys.executable,
         },
         {
@@ -408,6 +508,7 @@ def optional_warnings(report: dict[str, Any]) -> list[str]:
 
 
 def build_plan(args: argparse.Namespace) -> dict[str, Any]:
+    target_system, target_architecture, target_python = plan_platform(args)
     workspace = find_workspace(args.workspace)
     config_path = (
         Path(args.config).expanduser().resolve() if args.config else default_config_path()
@@ -427,11 +528,23 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
             config_path=synthetic_config,
             overrides=overrides,
         )
-        report = synthetic_empty_report(workspace, paths, synthetic_config)
+        report = synthetic_empty_report(
+            workspace,
+            paths,
+            synthetic_config,
+            target_python,
+        )
     else:
         report = run_doctor(args, workspace)
 
     actions, reuse = build_actions(report, simulated=args.simulate_empty)
+    blockers = installation_blockers(
+        target_system,
+        target_architecture,
+        target_python,
+    )
+    if any(item["code"] == "python_version_not_verified" for item in blockers):
+        reuse = [item for item in reuse if item != "Python"]
     warnings = optional_warnings(report)
     estimated_mb = sum(item["estimated_mb"] for item in actions)
     network_required = any(item["requires_network"] for item in actions)
@@ -444,9 +557,8 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
         data_free_gb = None
 
     status = "already_ready" if not actions else "confirmation_required"
-    if sys.version_info < (3, 10):
+    if blockers:
         status = "blocked"
-        actions.insert(0, action("unsupported_python", "需要 Python 3.10 或更高版本"))
 
     return {
         "schema_version": 1,
@@ -454,8 +566,12 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
         "mode": "plan",
         "read_only": True,
         "simulated": args.simulate_empty,
+        "platform": target_system,
+        "architecture": target_architecture,
+        "python_version": target_python,
         "status": status,
         "confirmation_required": status == "confirmation_required",
+        "blockers": blockers,
         "doctor_overall": report.get("overall"),
         "workspace": str(workspace),
         "config_path": report.get("config_path", str(config_path)),
@@ -2194,11 +2310,18 @@ def print_human(plan: dict[str, Any]) -> None:
     }[plan["status"]]
     print(f"状态：{status_text}")
 
+    if plan.get("blockers"):
+        print("阻塞原因：")
+        for item in plan["blockers"]:
+            print(f"- {item['code']}：{item['detail']}")
+            for fix in item.get("supported_fixes", []):
+                print(f"  下一步：{fix}")
+
     if plan["reuse"]:
         print("复用：" + "、".join(plan["reuse"]))
 
     if plan["actions"]:
-        print("本次会做：")
+        print("解除阻塞后需要：" if plan["status"] == "blocked" else "本次会做：")
         for item in plan["actions"]:
             print(f"- {item['description']}")
     else:
@@ -2231,6 +2354,8 @@ def print_human(plan: dict[str, Any]) -> None:
         print("确认以上位置和变更后，请回复：确认安装。")
     elif plan["status"] == "already_ready":
         print("环境已经可用，不需要再次确认安装。")
+    else:
+        print("当前计划不能执行 Apply；请先完成上述平台验证。")
 
 
 def print_apply_human(result: dict[str, Any]) -> None:

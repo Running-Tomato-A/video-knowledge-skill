@@ -38,6 +38,8 @@ Video Knowledge 是一套面向 Codex 的本地视频处理 Skill。它先在本
 
 Codex 的官方文档说明，`$skill-installer` 可以从其他仓库下载 Skill。独立 Skill 适合本地安装和试用；更广泛的正式分发后续应考虑 Plugin：<https://developers.openai.com/codex/build-skills>
 
+完整安装边界见 [安装契约](video-knowledge/references/install-contract.md)；结构化失败和平台适配见 [修复协议](video-knowledge/references/remediation-protocol.md)。
+
 手动检查时，在仓库根目录运行：
 
 ```text
@@ -51,6 +53,16 @@ python video-knowledge/scripts/setup.py --apply --yes
 ```
 
 安装器会依次完成运行环境、固定模型、FFmpeg、Skill 安装和最终 Verify。中途失败时会保留已经验证的部分；修复后重新运行同一条命令即可续跑。
+
+### macOS 预检（只读）
+
+当前 macOS 不能执行 `--apply`。Apple Silicon 测试者可先运行：
+
+```text
+python3 video-knowledge/scripts/macos_preflight.py --workspace /absolute/workspace
+```
+
+该命令不安装任何软件，不下载模型，不改动系统。请先提交 JSON 报告，再决定是否进入平台适配。
 
 ## 第一次使用
 
