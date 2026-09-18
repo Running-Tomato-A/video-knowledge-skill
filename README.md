@@ -23,11 +23,13 @@ Video Knowledge 是一套面向 Codex 的本地视频处理 Skill。它先在本
 
 | 能力 | 状态 |
 |---|---|
-| Windows x64 + Python 3.12 + CPU int8 | 已完成干净环境与单命令安装验证 |
+| Windows x64 + Python 3.12 + CPU int8 | 已完成干净环境、单命令安装与抖音直链验证 |
+| macOS Apple Silicon + Python 3.12 + CPU int8 | 已完成六阶段安装、故障续跑、重复复用与真实链接验证 |
 | 本地视频探测、抽帧、转写和 Markdown 输出 | 已验证 |
 | 一次确认后的完整安装与失败续跑 | 已验证 |
-| 公共视频链接获取 | 取决于站点、现有下载器或可选适配器 |
-| macOS | 架构上预留，尚无真机验证，不宣称支持 |
+| 单条公开抖音链接匿名保存 | Windows x64 与 macOS Apple Silicon 已验证 |
+| 其他公共视频链接获取 | 0.2.0 未内置通用下载器；可先提供本地视频或使用另行验证的适配器 |
+| Intel Mac、Windows ARM、Python 3.13+ | 尚未验证；安装计划会明确阻止 Apply |
 | 自动说话人分离 | 尚未实现；多人内容使用保守的上下文校正 |
 
 ## 安装
@@ -52,17 +54,17 @@ python video-knowledge/scripts/setup.py --plan
 python video-knowledge/scripts/setup.py --apply --yes
 ```
 
-安装器会依次完成运行环境、固定模型、FFmpeg、Skill 安装和最终 Verify。中途失败时会保留已经验证的部分；修复后重新运行同一条命令即可续跑。
+安装器会依次完成转写环境、固定模型、FFmpeg、独立采集环境、Skill 安装和最终 Verify。采集阶段只安装锁定的 Playwright Python 依赖并复用系统 Chrome／Edge／Chromium，不下载额外浏览器。中途失败时会保留已经验证的部分；修复后重新运行同一条命令即可续跑。
 
-### macOS 预检（只读）
+### macOS Apple Silicon
 
-当前 macOS 不能执行 `--apply`。Apple Silicon 测试者可先运行：
+Apple Silicon 与原生 Python 3.12 使用和 Windows 相同的 `--plan`、`--apply --yes` 安装入口。首次适配新机器或排查环境问题时，也可以先运行只读预检：
 
 ```text
 python3 video-knowledge/scripts/macos_preflight.py --workspace /absolute/workspace
 ```
 
-该命令不安装任何软件，不下载模型，不改动系统。请先提交 JSON 报告，再决定是否进入平台适配。
+该命令不安装任何软件，不下载模型，不改动系统。Intel Mac 尚未验证，不能复用 Apple Silicon 的依赖锁和测试结论。
 
 ## 第一次使用
 
@@ -84,7 +86,7 @@ python3 video-knowledge/scripts/macos_preflight.py --workspace /absolute/workspa
 
 ## 第三方组件
 
-项目代码采用 MIT License。运行时会使用或下载 Faster-Whisper、CTranslate2、Hugging Face Hub、Systran Faster-Whisper Small 模型以及 FFmpeg。来源与许可证边界见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+项目代码采用 MIT License。运行时会使用或下载 Faster-Whisper、CTranslate2、Hugging Face Hub、Systran Faster-Whisper Small 模型、FFmpeg，以及直接采集所需的 Playwright Python 驱动。来源与许可证边界见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 作者与协作
 

@@ -1,0 +1,6 @@
+# Verified on Darwin 25.6.0 arm64 with native CPython 3.12.13.
+# Exact --require-hashes install and anonymous system-Chrome probe passed on 2026-09-07.
+playwright==1.62.0 --hash=sha256:db755ab27db21a04186f1fe8169888e42356086e439b1059b923ef417f0b6034
+greenlet==3.5.4 --hash=sha256:3d66250e8b09f182ede05490998c818b5961f7a3640332d44c4927caec7bbfe4
+pyee==13.0.1 --hash=sha256:af2f8fede4171ef667dfded53f96e2ed0d6e6bd7ee3bb46437f77e3b57689228
+typing-extensions==4.11.0 --hash=sha256:c1f94d72897edaf4ce775bb7558d5b79d8126906a14ea5ed1635921406c0387a

@@ -1,0 +1,6 @@
+# Verified Windows x64 / Python 3.12 wheel lock.
+# Regenerate and repeat the clean-install evidence after every dependency change.
+playwright==1.62.0 --hash=sha256:92c0d98ed04eb35af557b709875edba415b1f548bdb22ddb5bb3e1e6c835c2f1
+greenlet==3.5.4 --hash=sha256:60149df8f462d1b230038e6590c23c3b4768bb5d6c022b3b6e82532b34b0b8a3
+pyee==13.0.1 --hash=sha256:af2f8fede4171ef667dfded53f96e2ed0d6e6bd7ee3bb46437f77e3b57689228
+typing-extensions==4.11.0 --hash=sha256:c1f94d72897edaf4ce775bb7558d5b79d8126906a14ea5ed1635921406c0387a

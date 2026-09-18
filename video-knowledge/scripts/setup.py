@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,11 +25,24 @@ from runtime_config import (  # noqa: E402
     find_workspace,
     resolve_runtime_paths,
 )
+from douyin_adapter import DouyinAdapterError, resolve_browser_executable  # noqa: E402
 
 
 MODEL_ESTIMATE_MB = 500
 PYTHON_ENV_ESTIMATE_MB = 300
 FFMPEG_ESTIMATE_MB = 150
+ACQUISITION_ENV_ESTIMATE_MB = 130
+SKILL_ROOT = Path(__file__).resolve().parent.parent
+WINDOWS_RUNTIME_LOCK = SKILL_ROOT / "requirements-windows-py312.lock"
+MACOS_ARM64_RUNTIME_LOCK = SKILL_ROOT / "requirements-runtime-macos-arm64-py312.lock"
+WINDOWS_ACQUISITION_LOCK = SKILL_ROOT / "requirements-acquisition-windows-py312.lock"
+MACOS_ARM64_ACQUISITION_LOCK = SKILL_ROOT / "requirements-acquisition-macos-arm64-py312.lock"
+PYPI_INDEXES = {
+    "official": "https://pypi.org/simple",
+    "tuna": "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+}
+PIP_TIMEOUT_SECONDS = 120
+PIP_RETRIES = 8
 
 
 def version_triplet(value: str) -> tuple[int, int, int]:
@@ -65,14 +79,11 @@ def installation_blockers(
     normalized_arch = architecture.lower()
     blockers: list[dict[str, Any]] = []
     windows_verified = system == "Windows" and normalized_arch in ("amd64", "x86_64")
+    macos_verified = system == "Darwin" and normalized_arch in ("arm64", "aarch64")
+    platform_verified = windows_verified or macos_verified
 
-    if not windows_verified:
-        if system == "Darwin" and normalized_arch in ("arm64", "aarch64"):
-            next_step = (
-                "Run scripts/macos_preflight.py on the target Mac and return its JSON report; "
-                "do not bypass Apply until a verified macOS arm64 dependency lock exists."
-            )
-        elif system == "Darwin":
+    if not platform_verified:
+        if system == "Darwin":
             next_step = (
                 "Collect a separate Intel Mac preflight and dependency lock; Apple Silicon "
                 "evidence cannot be reused for x86_64."
@@ -82,39 +93,98 @@ def installation_blockers(
         blockers.append(
             {
                 "code": "platform_not_verified",
-                "detail": f"Apply is verified only for Windows x64; detected {system} {architecture}.",
+                "detail": (
+                    "Apply is verified for Windows x64 and macOS Apple Silicon; "
+                    f"detected {system} {architecture}."
+                ),
                 "supported_fixes": [next_step],
             }
         )
 
     major, minor, _ = version_triplet(python_version)
-    if windows_verified and (major, minor) != (3, 12):
+    if platform_verified and (major, minor) != (3, 12):
         blockers.append(
             {
                 "code": "python_version_not_verified",
                 "detail": (
-                    f"Windows Apply requires Python 3.12 x64; detected Python {python_version}."
+                    f"The verified Apply recipe requires Python 3.12; detected Python {python_version}."
                 ),
                 "supported_fixes": [
-                    "Install or select Python 3.12 x64, then rerun the read-only plan."
-                ],
-            }
-        )
-    elif system == "Darwin" and (major, minor) != (3, 12):
-        blockers.append(
-            {
-                "code": "python_version_not_verified",
-                "detail": (
-                    "The macOS experimental recipe targets an isolated Python 3.12 environment; "
-                    f"detected Python {python_version}."
-                ),
-                "supported_fixes": [
-                    "Keep the existing Python unchanged and identify an available Python 3.12 "
-                    "interpreter in the macOS preflight report."
+                    "Install or select native Python 3.12 for the verified platform, then rerun the read-only plan."
                 ],
             }
         )
     return blockers
+
+
+def verified_apply_platform(system: str | None = None, architecture: str | None = None) -> bool:
+    current_system = system or platform.system()
+    current_arch = (architecture or platform.machine()).lower()
+    return (
+        current_system == "Windows" and current_arch in ("amd64", "x86_64")
+    ) or (
+        current_system == "Darwin" and current_arch in ("arm64", "aarch64")
+    )
+
+
+def selected_runtime_lock(
+    args: argparse.Namespace,
+    *,
+    system: str | None = None,
+    architecture: str | None = None,
+) -> Path:
+    explicit = getattr(args, "lock", None)
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+    current_system = system or platform.system()
+    current_arch = (architecture or platform.machine()).lower()
+    if current_system == "Darwin" and current_arch in ("arm64", "aarch64"):
+        return MACOS_ARM64_RUNTIME_LOCK.resolve()
+    return WINDOWS_RUNTIME_LOCK.resolve()
+
+
+def selected_acquisition_lock(
+    args: argparse.Namespace,
+    *,
+    system: str | None = None,
+    architecture: str | None = None,
+) -> Path:
+    explicit = getattr(args, "acquisition_lock", None)
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+    current_system = system or platform.system()
+    current_arch = (architecture or platform.machine()).lower()
+    if current_system == "Darwin" and current_arch in ("arm64", "aarch64"):
+        return MACOS_ARM64_ACQUISITION_LOCK.resolve()
+    return WINDOWS_ACQUISITION_LOCK.resolve()
+
+
+def pypi_config(args: argparse.Namespace) -> dict[str, Any]:
+    profile = getattr(args, "pypi_index", "official")
+    return {
+        "profile": profile,
+        "index_url": PYPI_INDEXES[profile],
+        "timeout_seconds": PIP_TIMEOUT_SECONDS,
+        "retries": PIP_RETRIES,
+        "hash_verification": True,
+        "binary_wheels_only": True,
+    }
+
+
+def pip_network_args(args: argparse.Namespace) -> list[str]:
+    source = pypi_config(args)
+    return [
+        "--no-cache-dir",
+        "--progress-bar",
+        "off",
+        "--index-url",
+        str(source["index_url"]),
+        "--timeout",
+        str(source["timeout_seconds"]),
+        "--retries",
+        str(source["retries"]),
+        "--only-binary=:all:",
+    ]
 
 
 def redact_sensitive_text(value: str) -> str:
@@ -155,7 +225,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--stage",
-        choices=("all", "runtime-dependencies", "model", "ffmpeg", "skill", "verify"),
+        choices=("all", "runtime-dependencies", "model", "ffmpeg", "acquisition", "skill", "verify"),
         default="all",
         help="Developer/recovery override; ordinary installation uses all.",
     )
@@ -169,13 +239,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-dir", help="Whisper model root directory.")
     parser.add_argument(
         "--lock",
-        default=str(Path(__file__).resolve().parent.parent / "requirements-windows-py312.lock"),
+        default=None,
         help="Locked dependency file used by --apply.",
     )
     parser.add_argument(
         "--model-manifest",
         default=str(Path(__file__).resolve().parent.parent / "references" / "model-manifest.json"),
         help="Pinned model manifest used by the model stage.",
+    )
+    parser.add_argument(
+        "--acquisition-lock",
+        default=None,
+        help="Locked direct-acquisition dependencies used by the acquisition stage.",
+    )
+    parser.add_argument(
+        "--pypi-index",
+        choices=tuple(PYPI_INDEXES),
+        default="official",
+        help="Use official PyPI or the named TUNA HTTPS mirror for locked wheels.",
+    )
+    parser.add_argument(
+        "--acquisition-wheel-dir",
+        help="Developer/offline override containing acquisition wheels; ordinary installs use PyPI.",
     )
     parser.add_argument("--skill-source", help="Source Skill directory; defaults to this package.")
     parser.add_argument("--skill-target", help="User Skill installation directory.")
@@ -334,18 +419,18 @@ def synthetic_empty_report(
             "path": str(paths["output_dir"]["path"]),
         },
         {
+            "id": "direct_douyin",
+            "label": "Direct Douyin acquisition",
+            "status": "warning",
+            "required": False,
+            "detail": "Synthetic blank environment: direct acquisition runtime is absent.",
+        },
+        {
             "id": "platform_collector",
             "label": "Douyin/Xiaohongshu collector",
             "status": "warning",
             "required": False,
             "detail": "Optional platform adapter is absent.",
-        },
-        {
-            "id": "yt_dlp",
-            "label": "yt-dlp",
-            "status": "warning",
-            "required": False,
-            "detail": "Optional generic public-video adapter is absent.",
         },
     ]
     storage: list[dict[str, Any]] = []
@@ -382,7 +467,7 @@ def synthetic_empty_report(
         },
         "checks": checks,
         "storage": storage,
-        "summary": {"pass": 1, "warning": 4, "missing_required": 4},
+        "summary": {"pass": 1, "warning": 5, "missing_required": 4},
     }
 
 
@@ -418,6 +503,8 @@ def build_actions(
     report: dict[str, Any],
     *,
     simulated: bool,
+    target_system: str,
+    skill_target: Path | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     checks = check_by_id(report)
     actions: list[dict[str, Any]] = []
@@ -433,10 +520,14 @@ def build_actions(
         actions.append(
             action(
                 "install_ffmpeg",
-                "安装 FFmpeg 与 FFprobe",
+                (
+                    "使用现有 Homebrew 安装 FFmpeg 与 FFprobe"
+                    if target_system == "Darwin"
+                    else "使用 Windows Package Manager 安装 FFmpeg 与 FFprobe"
+                ),
                 estimated_mb=FFMPEG_ESTIMATE_MB,
                 network=True,
-                admin=True,
+                admin=target_system == "Windows",
             )
         )
     else:
@@ -466,6 +557,18 @@ def build_actions(
     else:
         reuse.append("Whisper 模型")
 
+    if checks.get("direct_douyin", {}).get("status") != "pass":
+        actions.append(
+            action(
+                "install_direct_douyin",
+                "创建独立采集环境并安装锁定的 Playwright 依赖",
+                estimated_mb=ACQUISITION_ENV_ESTIMATE_MB,
+                network=True,
+            )
+        )
+    else:
+        reuse.append("抖音直接采集环境")
+
     if simulated or not report.get("config_exists"):
         actions.append(action("write_config", "写入用户运行配置"))
     else:
@@ -484,7 +587,11 @@ def build_actions(
         if simulated or not Path(raw_path).is_dir():
             actions.append(action("create_directory", f"创建{label}：{raw_path}"))
 
-    installed = False if simulated else any(path.is_file() for path in skill_candidates())
+    installed = False if simulated else (
+        (skill_target / "SKILL.md").is_file()
+        if skill_target is not None
+        else any(path.is_file() for path in skill_candidates())
+    )
     if installed:
         reuse.append("已安装的 Video Knowledge Skill")
     else:
@@ -498,8 +605,8 @@ def optional_warnings(report: dict[str, Any]) -> list[str]:
     for item in report.get("checks", []):
         if item.get("required") or item.get("status") != "warning":
             continue
-        if item.get("id") == "yt_dlp":
-            warnings.append("未安装 yt-dlp；不影响本地视频分析。")
+        if item.get("id") == "direct_douyin":
+            warnings.append("抖音直接采集环境未就绪；不影响本地视频分析。")
         elif item.get("id") == "platform_collector":
             warnings.append("未安装抖音／小红书适配器；不影响本地视频分析。")
         else:
@@ -537,12 +644,40 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
     else:
         report = run_doctor(args, workspace)
 
-    actions, reuse = build_actions(report, simulated=args.simulate_empty)
+    actions, reuse = build_actions(
+        report,
+        simulated=args.simulate_empty,
+        target_system=target_system,
+        skill_target=(
+            Path(args.skill_target).expanduser().resolve()
+            if args.skill_target
+            else None
+        ),
+    )
     blockers = installation_blockers(
         target_system,
         target_architecture,
         target_python,
     )
+    ffmpeg_missing = any(
+        item.get("id") in ("ffmpeg", "ffprobe") and item.get("status") == "missing"
+        for item in report.get("checks", [])
+    )
+    if (
+        not args.simulate_empty
+        and target_system == "Darwin"
+        and ffmpeg_missing
+        and resolve_brew() is None
+    ):
+        blockers.append(
+            {
+                "code": "homebrew_missing",
+                "detail": "FFmpeg/FFprobe are missing and the verified macOS recipe requires an existing Homebrew installation.",
+                "supported_fixes": [
+                    "Install Homebrew separately from its official instructions, then rerun the read-only plan."
+                ],
+            }
+        )
     if any(item["code"] == "python_version_not_verified" for item in blockers):
         reuse = [item for item in reuse if item != "Python"]
     warnings = optional_warnings(report)
@@ -586,6 +721,23 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
             "note": "体积为安装计划估算，实际依赖版本可能略有变化。",
         },
         "optional_warnings": warnings,
+        "dependency_locks": {
+            "runtime": str(
+                selected_runtime_lock(
+                    args,
+                    system=target_system,
+                    architecture=target_architecture,
+                )
+            ),
+            "acquisition": str(
+                selected_acquisition_lock(
+                    args,
+                    system=target_system,
+                    architecture=target_architecture,
+                )
+            ),
+        },
+        "python_package_source": pypi_config(args),
     }
 
 
@@ -651,6 +803,12 @@ def venv_python(venv_root: Path) -> Path:
     return venv_root / "bin" / "python"
 
 
+def executable_launch_path(path: str | os.PathLike[str]) -> Path:
+    """Return an absolute executable path without dereferencing venv symlinks."""
+
+    return Path(os.path.abspath(os.fspath(Path(path).expanduser())))
+
+
 def installed_versions(python: Path, packages: dict[str, str]) -> dict[str, str | None]:
     names_json = json.dumps(list(packages), ensure_ascii=True)
     code = (
@@ -698,14 +856,70 @@ def run_checked(
     operation: str,
     paths_changed: list[str],
     timeout: int,
+    environment: dict[str, str] | None = None,
+    heartbeat_interval: float = 30.0,
 ) -> subprocess.CompletedProcess[str]:
-    completed = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        check=False,
-    )
+    started = time.monotonic()
+    next_heartbeat = heartbeat_interval
+    with (
+        tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace") as stdout_file,
+        tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace") as stderr_file,
+    ):
+        process = subprocess.Popen(
+            command,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            text=True,
+            env=environment,
+        )
+        timed_out = False
+        try:
+            while process.poll() is None:
+                elapsed = time.monotonic() - started
+                if elapsed >= timeout:
+                    timed_out = True
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
+                    break
+                if heartbeat_interval > 0 and elapsed >= next_heartbeat:
+                    stdout_file.flush()
+                    stderr_file.flush()
+                    captured = stdout_file.tell() + stderr_file.tell()
+                    print(
+                        f"[setup] {component} still running: {int(elapsed)}s elapsed, "
+                        f"{captured} output characters captured.",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    next_heartbeat += heartbeat_interval
+                time.sleep(0.5)
+        except BaseException:
+            if process.poll() is None:
+                process.terminate()
+            raise
+        stdout_file.seek(0)
+        stderr_file.seek(0)
+        stdout = stdout_file.read()
+        stderr = stderr_file.read()
+        return_code = process.returncode if process.returncode is not None else -1
+    if timed_out:
+        detail = (stderr or stdout or "No subprocess output.").strip()
+        raise ApplyFailure(
+            error_code=f"{component}_timeout",
+            component=component,
+            operation=operation,
+            detail=f"Timed out after {timeout} seconds.\n{detail}",
+            exit_code=return_code,
+            supported_fixes=[
+                "Inspect the last completed stage and official component documentation before one focused retry."
+            ],
+            paths_changed=paths_changed,
+        )
+    completed = subprocess.CompletedProcess(command, return_code, stdout, stderr)
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
         raise ApplyFailure(
@@ -762,6 +976,7 @@ def stage_receipt_payload(
         "next_required": [
             "verify or install FFmpeg/FFprobe",
             "download and verify the pinned Whisper model",
+            "install and verify the direct acquisition runtime",
             "install or confirm the Skill",
             "run full Doctor and save the final installation receipt",
         ],
@@ -784,12 +999,12 @@ def apply_runtime_dependencies(args: argparse.Namespace) -> dict[str, Any]:
             operation="apply runtime-dependencies stage",
             detail="--simulate-empty is only valid with --plan.",
         )
-    if platform.system() != "Windows" or platform.machine().lower() not in ("amd64", "x86_64"):
+    if not verified_apply_platform():
         raise ApplyFailure(
             error_code="platform_not_verified",
             component="python_environment",
             operation="select dependency lock",
-            detail=f"No verified lock for {platform.system()} {platform.machine()}.",
+            detail=f"No verified runtime lock for {platform.system()} {platform.machine()}.",
             supported_fixes=[
                 "Use the platform remediation protocol and create a clean-environment lock before Apply."
             ],
@@ -799,8 +1014,8 @@ def apply_runtime_dependencies(args: argparse.Namespace) -> dict[str, Any]:
             error_code="python_version_not_verified",
             component="python_environment",
             operation="create virtual environment",
-            detail=f"Windows v0.1 Apply requires verified Python 3.12; current is {platform.python_version()}.",
-            supported_fixes=["Install or select Python 3.12 x64, then rerun Apply."],
+            detail=f"The verified Apply recipe requires Python 3.12; current is {platform.python_version()}.",
+            supported_fixes=["Install or select native Python 3.12, then rerun Apply."],
         )
 
     workspace = find_workspace(args.workspace)
@@ -824,7 +1039,7 @@ def apply_runtime_dependencies(args: argparse.Namespace) -> dict[str, Any]:
     data_root = Path(paths["data_root"]["path"])
     runtime_root = safe_install_path(data_root / "runtime", "runtime_root")
     venv_root = safe_install_path(runtime_root / "venv", "venv_root")
-    lock_path = Path(args.lock).expanduser().resolve()
+    lock_path = selected_runtime_lock(args)
     packages = read_lock(lock_path)
     lock_hash = hashlib.sha256(lock_path.read_bytes()).hexdigest().upper()
     changed_paths: list[str] = []
@@ -888,7 +1103,9 @@ def apply_runtime_dependencies(args: argparse.Namespace) -> dict[str, Any]:
                 "-m",
                 "pip",
                 "install",
+                "--isolated",
                 "--disable-pip-version-check",
+                *pip_network_args(args),
                 "--require-hashes",
                 "-r",
                 str(lock_path),
@@ -1047,6 +1264,28 @@ def inspect_model_snapshot(snapshot: Path, model: dict[str, Any]) -> dict[str, A
     return {"missing": missing, "mismatched": mismatched, "verified": verified}
 
 
+def reusable_model_snapshot(
+    model_root: Path, model: dict[str, Any]
+) -> tuple[Path | None, dict[str, Any] | None]:
+    repo_cache = "models--" + str(model["repo_id"]).replace("/", "--")
+    candidates = [
+        model_root / "snapshot",
+        model_root / repo_cache / "snapshots" / str(model["revision"]),
+        model_root / str(model["revision"]),
+    ]
+    seen: set[str] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        key = os.path.normcase(str(resolved))
+        if key in seen:
+            continue
+        seen.add(key)
+        inspection = inspect_model_snapshot(resolved, model)
+        if not inspection["missing"] and not inspection["mismatched"]:
+            return resolved, inspection
+    return None, None
+
+
 def apply_model(args: argparse.Namespace) -> dict[str, Any]:
     if not args.yes:
         raise ApplyFailure(
@@ -1063,7 +1302,7 @@ def apply_model(args: argparse.Namespace) -> dict[str, Any]:
             operation="apply model stage",
             detail="--simulate-empty is only valid with --plan.",
         )
-    if platform.system() != "Windows" or platform.machine().lower() not in ("amd64", "x86_64"):
+    if not verified_apply_platform():
         raise ApplyFailure(
             error_code="platform_not_verified",
             component="model",
@@ -1112,7 +1351,7 @@ def apply_model(args: argparse.Namespace) -> dict[str, Any]:
             detail=f"Runtime Python not found: {python}",
             supported_fixes=["Repair the runtime-dependencies stage before downloading the model."],
         )
-    lock_path = Path(args.lock).expanduser().resolve()
+    lock_path = selected_runtime_lock(args)
     packages = read_lock(lock_path)
     matching, mismatches = lock_matches(python, packages)
     if not matching:
@@ -1128,21 +1367,22 @@ def apply_model(args: argparse.Namespace) -> dict[str, Any]:
     model = load_model_manifest(manifest_path)
     manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest().upper()
     model_root = Path(paths["model_dir"]["path"])
-    snapshot = model_root / "snapshot"
-    inspection = inspect_model_snapshot(snapshot, model)
-    if inspection["mismatched"]:
+    snapshot, inspection = reusable_model_snapshot(model_root, model)
+    target_snapshot = model_root / "snapshot"
+    target_inspection = inspect_model_snapshot(target_snapshot, model)
+    if target_inspection["mismatched"]:
         raise ApplyFailure(
             error_code="model_integrity_failed",
             component="model",
             operation="verify existing model",
-            detail=json.dumps(inspection["mismatched"], ensure_ascii=False),
+            detail=json.dumps(target_inspection["mismatched"], ensure_ascii=False),
             supported_fixes=[
                 "Preserve the invalid files for diagnosis, then replace only the mismatched official files."
             ],
         )
 
     changed_paths: list[str] = []
-    if not inspection["missing"]:
+    if snapshot is not None and inspection is not None:
         model_result = "reused"
     else:
         print("[setup] Downloading and verifying the pinned Whisper model...", file=sys.stderr)
@@ -1178,6 +1418,7 @@ def apply_model(args: argparse.Namespace) -> dict[str, Any]:
             )
         changed_paths.append(str(model_root))
         model_result = "downloaded"
+        snapshot = target_snapshot
         inspection = inspect_model_snapshot(snapshot, model)
         if inspection["missing"] or inspection["mismatched"]:
             raise ApplyFailure(
@@ -1188,6 +1429,8 @@ def apply_model(args: argparse.Namespace) -> dict[str, Any]:
                 supported_fixes=["Retry only the missing official files from the pinned revision."],
                 paths_changed=changed_paths,
             )
+
+    assert snapshot is not None and inspection is not None
 
     action_result = {
         "kind": "model",
@@ -1212,6 +1455,7 @@ def apply_model(args: argparse.Namespace) -> dict[str, Any]:
         "files": inspection["verified"],
         "next_required": [
             "verify or install FFmpeg/FFprobe",
+            "install and verify the direct acquisition runtime",
             "install or confirm the Skill",
             "run full Doctor and save the final installation receipt",
         ],
@@ -1239,7 +1483,25 @@ def resolve_executable(env_name: str, command: str) -> str | None:
     if configured:
         path = Path(configured).expanduser().resolve()
         return str(path) if path.is_file() else None
-    return shutil.which(command)
+    found = shutil.which(command)
+    if found:
+        return found
+    if platform.system() == "Darwin" and command in ("ffmpeg", "ffprobe"):
+        for root in (Path("/opt/homebrew/bin"), Path("/usr/local/bin")):
+            candidate = root / command
+            if candidate.is_file():
+                return str(candidate)
+    return None
+
+
+def resolve_brew() -> str | None:
+    found = shutil.which("brew")
+    if found:
+        return found
+    for candidate in (Path("/opt/homebrew/bin/brew"), Path("/usr/local/bin/brew")):
+        if candidate.is_file():
+            return str(candidate)
+    return None
 
 
 def executable_version(executable: str) -> str:
@@ -1426,7 +1688,7 @@ def apply_ffmpeg(args: argparse.Namespace) -> dict[str, Any]:
             operation="apply ffmpeg stage",
             detail="--simulate-empty is only valid with --plan.",
         )
-    if platform.system() != "Windows" or platform.machine().lower() not in ("amd64", "x86_64"):
+    if not verified_apply_platform():
         raise ApplyFailure(
             error_code="platform_not_verified",
             component="ffmpeg",
@@ -1479,50 +1741,68 @@ def apply_ffmpeg(args: argparse.Namespace) -> dict[str, Any]:
     action_result = "reused"
     system_change: str | None = None
     if not ffmpeg or not ffprobe:
-        winget = None if simulate_no_media_tools else shutil.which("winget")
-        if not winget:
-            raise ApplyFailure(
-                error_code="winget_missing",
+        if platform.system() == "Darwin":
+            brew = None if simulate_no_media_tools else resolve_brew()
+            if not brew:
+                raise ApplyFailure(
+                    error_code="homebrew_missing",
+                    component="ffmpeg",
+                    operation="install Homebrew ffmpeg formula",
+                    detail="FFmpeg/FFprobe are missing and Homebrew is not available.",
+                    supported_fixes=[
+                        "Install Homebrew separately from its official instructions, then rerun the read-only plan."
+                    ],
+                )
+            print("[setup] Installing FFmpeg/FFprobe with the existing Homebrew...", file=sys.stderr)
+            run_checked(
+                [brew, "install", "ffmpeg"],
                 component="ffmpeg",
-                operation="install Gyan.FFmpeg.Essentials",
-                detail="FFmpeg/FFprobe are missing and winget is not available.",
-                supported_fixes=[
-                    "Install FFmpeg from the official FFmpeg Windows builds entry, then add ffmpeg and ffprobe to PATH.",
-                    "Install or repair Windows Package Manager, then rerun the stage.",
-                ],
+                operation="install Homebrew ffmpeg formula",
+                paths_changed=["Homebrew formula:ffmpeg"],
+                timeout=1800,
+                environment={
+                    **os.environ,
+                    "HOMEBREW_NO_AUTO_UPDATE": "1",
+                    "HOMEBREW_NO_INSTALL_CLEANUP": "1",
+                    "HOMEBREW_NO_INSTALL_UPGRADE": "1",
+                    "HOMEBREW_NO_ENV_HINTS": "1",
+                    "HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK": "1",
+                },
             )
-        print("[setup] Installing FFmpeg/FFprobe with winget...", file=sys.stderr)
-        completed = subprocess.run(
-            [
-                winget,
-                "install",
-                "--id",
-                "Gyan.FFmpeg.Essentials",
-                "--exact",
-                "--source",
-                "winget",
-                "--accept-package-agreements",
-                "--accept-source-agreements",
-                "--disable-interactivity",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=1800,
-            check=False,
-        )
-        if completed.returncode != 0:
-            raise ApplyFailure(
-                error_code="ffmpeg_install_failed",
+            system_change = "Homebrew formula: ffmpeg and required dependencies"
+        else:
+            winget = None if simulate_no_media_tools else shutil.which("winget")
+            if not winget:
+                raise ApplyFailure(
+                    error_code="winget_missing",
+                    component="ffmpeg",
+                    operation="install Gyan.FFmpeg.Essentials",
+                    detail="FFmpeg/FFprobe are missing and winget is not available.",
+                    supported_fixes=[
+                        "Install FFmpeg from the official FFmpeg Windows builds entry, then add ffmpeg and ffprobe to PATH.",
+                        "Install or repair Windows Package Manager, then rerun the stage.",
+                    ],
+                )
+            print("[setup] Installing FFmpeg/FFprobe with winget...", file=sys.stderr)
+            run_checked(
+                [
+                    winget,
+                    "install",
+                    "--id",
+                    "Gyan.FFmpeg.Essentials",
+                    "--exact",
+                    "--source",
+                    "winget",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                    "--disable-interactivity",
+                ],
                 component="ffmpeg",
                 operation="install Gyan.FFmpeg.Essentials",
-                detail=completed.stderr.strip() or completed.stdout.strip(),
-                exit_code=completed.returncode,
-                supported_fixes=[
-                    "Inspect the Winget package result and retry the same official package once.",
-                    "Use the official FFmpeg Windows builds entry and set explicit FFMPEG_PATH/FFPROBE_PATH.",
-                ],
                 paths_changed=["system package:Gyan.FFmpeg.Essentials"],
+                timeout=1800,
             )
+            system_change = "Gyan.FFmpeg.Essentials"
         ffmpeg = resolve_executable("FFMPEG_PATH", "ffmpeg")
         ffprobe = resolve_executable("FFPROBE_PATH", "ffprobe")
         if not ffmpeg or not ffprobe:
@@ -1530,12 +1810,11 @@ def apply_ffmpeg(args: argparse.Namespace) -> dict[str, Any]:
                 error_code="ffmpeg_not_visible_after_install",
                 component="ffmpeg",
                 operation="resolve installed FFmpeg commands",
-                detail="Winget completed but ffmpeg/ffprobe are not visible on the current PATH.",
+                detail="The platform package manager completed but ffmpeg/ffprobe are not visible.",
                 supported_fixes=["Restart the terminal or configure explicit executable paths."],
-                paths_changed=["system package:Gyan.FFmpeg.Essentials"],
+                paths_changed=[system_change] if system_change else [],
             )
         action_result = "installed"
-        system_change = "Gyan.FFmpeg.Essentials"
 
     ffmpeg = str(Path(ffmpeg).resolve())
     ffprobe = str(Path(ffprobe).resolve())
@@ -1569,6 +1848,7 @@ def apply_ffmpeg(args: argparse.Namespace) -> dict[str, Any]:
             "system_change": system_change,
             "smoke": smoke,
             "next_required": [
+                "install and verify the direct acquisition runtime",
                 "install or confirm the Skill",
                 "run full Doctor and save the final installation receipt",
             ],
@@ -1598,9 +1878,207 @@ def apply_ffmpeg(args: argparse.Namespace) -> dict[str, Any]:
         "receipt": str(receipt_path),
         "receipt_result": receipt_result,
         "next_required": [
+            "install and verify the direct acquisition runtime",
             "install or confirm the Skill",
             "run full Doctor and save the final installation receipt",
         ],
+    }
+
+
+def apply_acquisition(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.yes:
+        raise ApplyFailure(
+            error_code="authorization_required",
+            component="setup",
+            operation="apply acquisition stage",
+            detail="--apply requires --yes after the installation plan has been reviewed.",
+            supported_fixes=["Run --plan, review the paths, then rerun --apply --yes --stage acquisition."],
+        )
+    if args.simulate_empty:
+        raise ApplyFailure(
+            error_code="invalid_apply_mode",
+            component="setup",
+            operation="apply acquisition stage",
+            detail="--simulate-empty is only valid with --plan.",
+        )
+    if not verified_apply_platform():
+        raise ApplyFailure(
+            error_code="platform_not_verified",
+            component="acquisition",
+            operation="select acquisition dependency lock",
+            detail=f"No verified acquisition lock for {platform.system()} {platform.machine()}.",
+            supported_fixes=["Collect a platform-specific clean-install lock before Apply."],
+        )
+    if sys.version_info[:2] != (3, 12):
+        raise ApplyFailure(
+            error_code="python_version_not_verified",
+            component="acquisition",
+            operation="create acquisition virtual environment",
+            detail=f"The verified acquisition Apply requires Python 3.12; current is {platform.python_version()}.",
+            supported_fixes=["Install or select native Python 3.12, then rerun Apply."],
+        )
+
+    workspace = find_workspace(args.workspace)
+    config_path = Path(args.config).expanduser().resolve() if args.config else default_config_path()
+    paths, _ = resolve_runtime_paths(
+        workspace,
+        config_path=config_path,
+        overrides={
+            "data_root": args.data_root,
+            "download_dir": args.download_dir,
+            "cache_dir": args.cache_dir,
+            "output_dir": args.output_dir,
+            "model_dir": args.model_dir,
+        },
+    )
+    data_root = safe_install_path(Path(paths["data_root"]["path"]), "data_root")
+    acquisition_root = safe_install_path(data_root / "acquisition", "acquisition_root")
+    venv_root = safe_install_path(acquisition_root / "venv", "acquisition_venv")
+    lock_path = selected_acquisition_lock(args)
+    packages = read_lock(lock_path)
+    lock_hash = hash_file(lock_path)
+    changed_paths: list[str] = []
+    actions: list[dict[str, Any]] = []
+
+    if acquisition_root.is_dir():
+        actions.append({"kind": "directory", "path": str(acquisition_root), "result": "reused"})
+    elif acquisition_root.exists():
+        raise ApplyFailure(
+            error_code="path_not_directory",
+            component="acquisition",
+            operation="create acquisition directory",
+            detail=f"Path exists but is not a directory: {acquisition_root}",
+        )
+    else:
+        acquisition_root.mkdir(parents=True, exist_ok=False)
+        changed_paths.append(str(acquisition_root))
+        actions.append({"kind": "directory", "path": str(acquisition_root), "result": "created"})
+
+    python = venv_python(venv_root)
+    if python.is_file():
+        actions.append({"kind": "acquisition_venv", "path": str(venv_root), "result": "reused"})
+    else:
+        run_checked(
+            [sys.executable, "-m", "venv", str(venv_root)],
+            component="acquisition_environment",
+            operation="create acquisition virtual environment",
+            paths_changed=changed_paths + [str(venv_root)],
+            timeout=300,
+        )
+        changed_paths.append(str(venv_root))
+        actions.append({"kind": "acquisition_venv", "path": str(venv_root), "result": "created"})
+
+    matching, mismatches = lock_matches(python, packages)
+    if matching:
+        actions.append(
+            {
+                "kind": "acquisition_dependencies",
+                "path": str(lock_path),
+                "result": "reused",
+                "packages": len(packages),
+            }
+        )
+    else:
+        command = [
+            str(python),
+            "-m",
+            "pip",
+            "install",
+            "--isolated",
+            "--disable-pip-version-check",
+        ]
+        if args.acquisition_wheel_dir:
+            wheel_dir = Path(args.acquisition_wheel_dir).expanduser().resolve()
+            if not wheel_dir.is_dir():
+                raise ApplyFailure(
+                    error_code="acquisition_wheel_dir_missing",
+                    component="acquisition",
+                    operation="select offline acquisition wheels",
+                    detail=f"Acquisition wheel directory does not exist: {wheel_dir}",
+                    paths_changed=changed_paths,
+                )
+            command.extend(["--no-index", "--find-links", str(wheel_dir)])
+        else:
+            command.extend(pip_network_args(args))
+        command.extend(["--require-hashes", "-r", str(lock_path)])
+        environment = os.environ.copy()
+        environment["PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"] = "1"
+        run_checked(
+            command,
+            component="acquisition_dependencies",
+            operation="install locked acquisition dependencies",
+            paths_changed=changed_paths,
+            timeout=1800,
+            environment=environment,
+        )
+        matching, remaining = lock_matches(python, packages)
+        if not matching:
+            raise ApplyFailure(
+                error_code="acquisition_dependency_verification_failed",
+                component="acquisition",
+                operation="verify acquisition dependencies",
+                detail=json.dumps(remaining, ensure_ascii=False),
+                paths_changed=changed_paths,
+            )
+        actions.append(
+            {
+                "kind": "acquisition_dependencies",
+                "path": str(lock_path),
+                "result": "installed",
+                "packages": len(packages),
+                "previous_mismatches": mismatches,
+            }
+        )
+
+    try:
+        browser, browser_source = resolve_browser_executable()
+    except DouyinAdapterError as exc:
+        raise ApplyFailure(
+            error_code=exc.code,
+            component="acquisition",
+            operation="resolve system Chromium browser",
+            detail=exc.detail,
+            supported_fixes=exc.supported_fixes,
+            paths_changed=changed_paths,
+        ) from exc
+    versions = installed_versions(python, packages)
+    receipt_path = acquisition_root / "acquisition-receipt.json"
+    receipt = {
+        "schema_version": 1,
+        "status": "acquisition_ready",
+        "stage": "acquisition",
+        "platform": platform.system(),
+        "architecture": platform.machine(),
+        "python": str(python),
+        "packages": versions,
+        "lock_file": str(lock_path),
+        "lock_sha256": lock_hash,
+        "browser": {"path": str(browser), "source": browser_source},
+        "bundled_browser_installed": False,
+        "next_required": [
+            "install or confirm the Skill",
+            "run full Doctor and save the final installation receipt",
+        ],
+    }
+    receipt_result, _ = atomic_write_json(receipt_path, receipt)
+    if receipt_result == "written":
+        changed_paths.append(str(receipt_path))
+    return {
+        "schema_version": 1,
+        "tool": "video-knowledge-setup",
+        "mode": "apply",
+        "status": "stage_complete",
+        "stage": "acquisition",
+        "complete_installation": False,
+        "acquisition_root": str(acquisition_root),
+        "venv_python": str(python),
+        "browser": str(browser),
+        "lock_file": str(lock_path),
+        "lock_sha256": lock_hash,
+        "actions": actions,
+        "receipt": str(receipt_path),
+        "receipt_result": receipt_result,
+        "next_required": receipt["next_required"],
     }
 
 
@@ -1910,6 +2388,7 @@ def apply_all(args: argparse.Namespace) -> dict[str, Any]:
         ("runtime-dependencies", apply_runtime_dependencies),
         ("model", apply_model),
         ("ffmpeg", apply_ffmpeg),
+        ("acquisition", apply_acquisition),
         ("skill", apply_skill),
         ("verify", apply_verify),
     ]
@@ -2172,15 +2651,23 @@ def apply_verify(args: argparse.Namespace) -> dict[str, Any]:
         "runtime_dependencies": runtime_root / "runtime-dependencies-receipt.json",
         "model": runtime_root / "model-receipt.json",
         "ffmpeg": runtime_root / "ffmpeg-receipt.json",
+        "acquisition": data_root / "acquisition" / "acquisition-receipt.json",
     }
     runtime_receipt = load_stage_receipt(
         receipt_paths["runtime_dependencies"], "runtime_dependencies_ready", "runtime-dependencies"
     )
     model_receipt = load_stage_receipt(receipt_paths["model"], "model_ready", "model")
     ffmpeg_receipt = load_stage_receipt(receipt_paths["ffmpeg"], "ffmpeg_ready", "ffmpeg")
+    acquisition_receipt = load_stage_receipt(
+        receipt_paths["acquisition"], "acquisition_ready", "acquisition"
+    )
 
-    python = Path(runtime_receipt.get("python", "")).expanduser().resolve()
-    if not python.is_file() or python != venv_python(runtime_root / "venv").resolve():
+    python = executable_launch_path(runtime_receipt.get("python", ""))
+    expected_runtime_python = executable_launch_path(venv_python(runtime_root / "venv"))
+    if (
+        not python.is_file()
+        or os.path.normcase(str(python)) != os.path.normcase(str(expected_runtime_python))
+    ):
         raise ApplyFailure(
             error_code="runtime_python_receipt_mismatch",
             component="verify",
@@ -2188,14 +2675,17 @@ def apply_verify(args: argparse.Namespace) -> dict[str, Any]:
             detail=f"Runtime receipt does not identify the configured venv Python: {python}",
             supported_fixes=["Rerun the runtime-dependencies stage."],
         )
+    model_root = Path(paths["model_dir"]["path"]).resolve()
     model_snapshot = Path(model_receipt.get("snapshot", "")).expanduser().resolve()
-    expected_snapshot = (Path(paths["model_dir"]["path"]) / "snapshot").resolve()
-    if model_snapshot != expected_snapshot or not model_snapshot.is_dir():
+    if (
+        not model_snapshot.is_dir()
+        or (model_snapshot != model_root and model_root not in model_snapshot.parents)
+    ):
         raise ApplyFailure(
             error_code="model_receipt_path_mismatch",
             component="verify",
             operation="verify model snapshot",
-            detail=f"Model receipt path {model_snapshot} does not match {expected_snapshot}.",
+            detail=f"Model receipt path is missing or outside the configured model root: {model_snapshot}",
             supported_fixes=["Rerun the model stage for the selected model directory."],
         )
     model = load_model_manifest(Path(args.model_manifest).expanduser().resolve())
@@ -2207,6 +2697,48 @@ def apply_verify(args: argparse.Namespace) -> dict[str, Any]:
             operation="recheck pinned model files",
             detail=json.dumps(model_inspection, ensure_ascii=False),
             supported_fixes=["Repair the model stage without overwriting unverified files."],
+        )
+
+    acquisition_python = executable_launch_path(acquisition_receipt.get("python", ""))
+    expected_acquisition_python = executable_launch_path(
+        venv_python(data_root / "acquisition" / "venv")
+    )
+    acquisition_lock = selected_acquisition_lock(args)
+    acquisition_packages = read_lock(acquisition_lock)
+    if (
+        not acquisition_python.is_file()
+        or os.path.normcase(str(acquisition_python))
+        != os.path.normcase(str(expected_acquisition_python))
+        or acquisition_receipt.get("lock_sha256") != hash_file(acquisition_lock)
+    ):
+        raise ApplyFailure(
+            error_code="acquisition_receipt_mismatch",
+            component="verify",
+            operation="verify acquisition runtime receipt",
+            detail="Acquisition Python path or dependency lock no longer matches its stage receipt.",
+            supported_fixes=["Rerun the acquisition stage with the verified lock."],
+        )
+    acquisition_matching, acquisition_mismatches = lock_matches(
+        acquisition_python, acquisition_packages
+    )
+    if not acquisition_matching:
+        raise ApplyFailure(
+            error_code="acquisition_integrity_failed",
+            component="verify",
+            operation="verify acquisition package versions",
+            detail=json.dumps(acquisition_mismatches, ensure_ascii=False),
+            supported_fixes=["Rerun only the acquisition stage."],
+        )
+    browser_path = Path(
+        str((acquisition_receipt.get("browser") or {}).get("path") or "")
+    ).expanduser().resolve()
+    if not browser_path.is_file():
+        raise ApplyFailure(
+            error_code="acquisition_browser_missing",
+            component="verify",
+            operation="verify acquisition browser",
+            detail=f"Recorded Chromium browser is missing: {browser_path}",
+            supported_fixes=["Install or configure Chrome, Edge, or Chromium, then rerun acquisition."],
         )
 
     target = safe_install_path(
@@ -2265,6 +2797,12 @@ def apply_verify(args: argparse.Namespace) -> dict[str, Any]:
             "fingerprint": target_manifest["fingerprint"],
             "files": len(target_manifest["files"]),
         },
+        "acquisition": {
+            "python": str(acquisition_python),
+            "packages": acquisition_receipt.get("packages"),
+            "browser": str(browser_path),
+            "bundled_browser_installed": False,
+        },
         "doctor": {
             "overall": doctor["overall"],
             "summary": doctor["summary"],
@@ -2309,6 +2847,13 @@ def print_human(plan: dict[str, Any]) -> None:
         "blocked": "暂时被阻塞",
     }[plan["status"]]
     print(f"状态：{status_text}")
+    print(
+        f"平台：{plan['platform']} {plan['architecture']}；"
+        f"Python {plan['python_version']}"
+    )
+    source = plan.get("python_package_source") or {}
+    if source:
+        print(f"Python 包源：{source.get('profile')}（{source.get('index_url')}）")
 
     if plan.get("blockers"):
         print("阻塞原因：")
@@ -2382,6 +2927,9 @@ def print_apply_human(result: dict[str, Any]) -> None:
     elif result["stage"] == "ffmpeg":
         print("阶段：FFmpeg／FFprobe")
         items = [result["action"]]
+    elif result["stage"] == "acquisition":
+        print("阶段：抖音直接采集环境")
+        items = result["actions"]
     else:
         print("阶段：Video Knowledge Skill")
         items = [result["action"]]
@@ -2420,6 +2968,8 @@ def main() -> int:
             result = apply_model(args)
         elif args.stage == "ffmpeg":
             result = apply_ffmpeg(args)
+        elif args.stage == "acquisition":
+            result = apply_acquisition(args)
         elif args.stage == "skill":
             result = apply_skill(args)
         else:

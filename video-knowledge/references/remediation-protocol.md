@@ -53,22 +53,23 @@ Detect `Darwin` plus `arm64` or `x86_64` before selecting a recipe.
 First run the read-only evidence collector and return its JSON report:
 
 ```text
-python scripts/macos_preflight.py --workspace /absolute/workspace
+python3 scripts/macos_preflight.py --workspace /absolute/workspace --douyin-url USER_SELECTED_PUBLIC_URL
 ```
 
-Do not install or change anything during this first pass. The report deliberately excludes serial numbers, hardware UUIDs, hostnames, and account tokens.
+Do not install or change anything during this first pass. The report also checks system Chromium discovery, official PyPI arm64 wheel metadata, and small access requests to the pinned model and selected public URL. It deliberately excludes serial numbers, hardware UUIDs, hostnames, account tokens, cookies, browser profiles, and proxy values.
 
 Preferred order:
 
 1. Reuse a compatible Python and FFmpeg already on PATH.
-2. Create a project venv and install the platform wheel selected by pip.
-3. For FFmpeg, use an existing Homebrew installation; if Homebrew or FFmpeg is absent, ask before installing either.
-4. Download the pinned model using the same model manifest and HTTP fallback used on Windows.
-5. Run a short model load, transcription, FFprobe, and frame extraction smoke test.
+2. For Apple Silicon with Python 3.12, reuse the real-machine-verified `requirements-acquisition-macos-arm64-py312.lock` for the separate acquisition venv; do not regenerate or broaden it.
+3. Reuse the real-machine-verified `requirements-runtime-macos-arm64-py312.lock` for the separate transcription venv; do not substitute Windows hashes or broaden versions.
+4. For FFmpeg, use an existing Homebrew installation; if Homebrew or FFmpeg is absent, ask before installing either.
+5. Download the pinned model using the same model manifest and HTTP fallback used on Windows.
+6. Run a short model load, transcription, FFprobe, and frame extraction smoke test.
 
 Do not silently install Rosetta, compile CTranslate2 from source, downgrade Python, or switch model revisions. These require an explicit diagnosis and user approval.
 
-Intel and Apple Silicon must keep separate lock/evidence records. Until both receive real-machine tests, report macOS as unverified rather than supported.
+Intel and Apple Silicon must keep separate lock/evidence records. Apple Silicon acquisition, runtime, media, model, six-stage Setup, structured failure resume, Doctor, real-link analysis, and second-run reuse are verified. All Intel macOS components remain unverified.
 
 ## Successful repair
 

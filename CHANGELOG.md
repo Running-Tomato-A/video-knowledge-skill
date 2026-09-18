@@ -2,6 +2,30 @@
 
 This project follows Semantic Versioning for public preview releases. The technical Skill identifier remains `video-knowledge`; a future public brand or IP name may change the display layer without changing this identifier.
 
+## 0.2.0 — 2026-09-18
+
+### Added
+
+- Direct anonymous acquisition for one user-selected public Douyin video.
+- Managed acquisition runner, separate four-package SHA-256 lock, system-browser discovery, and six-stage Setup／Verify receipt chain.
+- Single `process_source.py` entrypoint from share text or local video to verified media, probe, transcript, and inspection frames.
+- Acquisition dependency license snapshot and privacy boundary.
+- Duration-adaptive inspection frames with only cited evidence frames retained in formal output.
+- Verified macOS Apple Silicon／Python 3.12 installation and runtime support alongside Windows x64／Python 3.12.
+
+### Fixed
+
+- Reprocessing preserves a human-curated `transcript.md` unless `--force` is explicit.
+- Model Setup reuses a fully verified Hugging Face cache snapshot instead of duplicating 486 MB into a second layout.
+- macOS Verify preserves managed-venv executable symlinks instead of resolving them to the base interpreter.
+- Doctor no longer warns about `yt-dlp`, which is not an implemented 0.2.0 acquisition adapter.
+
+### Verified
+
+- Previously unseen Douyin short link saved through the independent acquisition venv, then transcribed, framed, and analyzed.
+- Repeat processing reused media, transcript, and frames without changing curated Markdown files.
+- macOS six-stage failure resume, full Doctor, inference smoke test, real-link analysis, and all-receipt second-run reuse.
+
 ## 0.1.0-preview.6 — 2026-09-04
 
 ### Fixed

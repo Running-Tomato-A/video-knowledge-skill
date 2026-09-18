@@ -1,0 +1,3 @@
+# Direct acquisition runtime only. Keep separate from transcription dependencies.
+# The adapter uses an existing Chrome, Edge, or Chromium executable; do not install bundled browsers.
+playwright==1.62.0

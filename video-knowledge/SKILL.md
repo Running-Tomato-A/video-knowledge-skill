@@ -26,8 +26,8 @@ When the user explains doubts, interests, or desired directions in natural but u
 ## Process
 
 1. Read [references/evidence-protocol.md](references/evidence-protocol.md) before acquiring or analyzing the source.
-2. Locate and reuse existing local video, metadata, transcript, and frames before downloading or recomputing anything.
-3. Verify the source identity, inspect duration/audio/visual density/speaker structure, and choose processing effort internally. Do not ask for confirmation merely because the video is long.
+2. Locate and reuse existing local video, metadata, transcript, and frames before downloading or recomputing anything. Read [references/acquisition-contract.md](references/acquisition-contract.md), then prepare either a local file or public share text through `python scripts/process_source.py SOURCE --json`. For Douyin, the single entrypoint prefers its direct anonymous engine and uses the installed collector only as a traceable compatibility fallback; it then probes the verified media, transcribes it, and extracts sparse inspection frames. Do not ask the user to download the video or manually open the collector first.
+3. Continue only after preprocessing returns `status: analysis_ready`. Verify the source identity and use its probe, transcript, and duration-adaptive inspection frames to assess audio/visual density and speaker structure. Treat these as orientation frames, not a fixed final quota. Decide whether visuals are negligible, supplementary, or essential; when visuals carry claims, interfaces, demonstrations, changing slides, or source evidence, use the retained media and `scripts/extract_frames.py` to add the specific frames the analysis needs. Choose processing effort internally; do not ask for confirmation merely because the video is long. `scripts/acquire.py` remains the acquisition-only diagnostic entrypoint.
 4. Build the shared evidence layer: source, timestamped transcript, conclusion-changing corrections, cited frames, claims/arguments, information-type labels, and uncertainty log.
 5. Read [references/analysis-modes.md](references/analysis-modes.md), record the internal analysis brief in the evidence-rich report, then produce only the selected mode's report.
 6. Save a concise `analysis.md` and a separate evidence-rich `analysis-完整底稿.md`. Keep generated artifacts human-browsable and reusable.
@@ -43,19 +43,21 @@ For installation or runtime reconfiguration, read [references/install-contract.m
 python scripts/setup.py --plan
 ```
 
-Do not infer installation authorization from planning. After the user approves the plan, ordinary installation uses one command: `python scripts/setup.py --apply --yes`. It runs five verified Windows stages in order: `runtime-dependencies`, `model`, `ffmpeg`, `skill`, and `verify`. `--stage` is only a developer or recovery override. The first four must return `complete_installation: false`; only Verify may return `true`, after all stage receipts, the installed Skill fingerprint, full Doctor, and a short local model inference pass. Treat `ready_with_warnings` as usable only when every warning is optional.
+Do not infer installation authorization from planning. After the user approves the plan, ordinary installation uses one command: `python scripts/setup.py --apply --yes`. It runs six stages in order: `runtime-dependencies`, `model`, `ffmpeg`, `acquisition`, `skill`, and `verify`. `--stage` is only a developer or recovery override. The first five must return `complete_installation: false`; only Verify may return `true`, after all stage receipts, the installed Skill fingerprint, full Doctor, and a short local model inference pass. Treat `ready_with_warnings` as usable only when every warning is optional.
+
+The acquisition stage creates a separate managed venv from the verified Windows x64 or macOS arm64 Python 3.12 lock, uses pip `--require-hashes`, and reuses a system Chrome／Edge／Chromium executable. It must not download Playwright's bundled browsers or merge acquisition packages into the transcription venv. Use `python scripts/run_acquire.py --probe --json` for a read-only acquisition readiness check.
 
 Valid stages and downloads must be reused after interruption or on repeat installation. Store version backups outside the discoverable `skills/` directory so Codex cannot load an obsolete copy as a second Skill.
 
 When Setup or Doctor returns a structured failure, read [references/remediation-protocol.md](references/remediation-protocol.md). Diagnose only the failed component, prefer official sources, keep repairs bounded, and obtain authorization for system-level changes.
 
-On macOS, `setup.py --apply` must remain blocked until a real-machine platform lock exists. Read the macOS section of the remediation protocol and run the read-only preflight before proposing any installation:
+macOS Apple Silicon with native Python 3.12 is a verified Apply target. On Darwin 25.6.0 arm64 with CPython 3.12.13, the complete six-stage installation, failure resume, full Doctor, second-run receipt reuse, pinned-model inference, Homebrew FFmpeg／FFprobe, anonymous Douyin acquisition, adaptive frames, transcription, and two-document analysis all passed. Intel macOS remains unsupported. Run the read-only preflight only when the target Mac lacks equivalent environment evidence or needs diagnosis:
 
 ```text
 python scripts/macos_preflight.py --workspace /absolute/workspace
 ```
 
-Do not treat a successful preflight as installation authorization or as evidence that macOS is supported. Return the report for review before installing Homebrew, Rosetta, Python, FFmpeg, or runtime packages.
+Do not treat a successful preflight or acquisition probe as installation authorization. Return the report for review before installing Homebrew, Rosetta, Python, FFmpeg, or transcription runtime packages. Do not ask a tester to repeat already valid evidence.
 
 Run the read-only full Doctor after installation, on first use, after storage/model changes, or while troubleshooting:
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generator": "video-knowledge-release-candidate-v1",
-  "release_version": "0.1.0-preview.6",
+  "release_version": "0.2.0",
   "files": [
     {
       "path": ".gitattributes",
@@ -19,19 +19,24 @@
       "sha256": "CB21895CC75242E975C760B15F632F499760CF801C3E3E05E22DC5D8B55E5C92"
     },
     {
+      "path": "ACQUISITION_DEPENDENCY_LICENSES.md",
+      "bytes": 1216,
+      "sha256": "B5C8BCE7A94D4C545399BCC65BE31A4E751D1E7515337447738D3C140B9C0908"
+    },
+    {
       "path": "CHANGELOG.md",
-      "bytes": 3475,
-      "sha256": "E6D1B104A48ED0966033D731836320827C9411CFF02F7F6ED438BDC172F686C3"
+      "bytes": 4914,
+      "sha256": "624AFD46F0A4FD637DF365649FCA61F8A46411A12B4C95C15E251C14800168BF"
     },
     {
       "path": "DEPENDENCY_LICENSES.md",
-      "bytes": 3283,
-      "sha256": "79BEDB1630480D723B782C1E4780F227E0E7A9F97D466C29503B142757E54143"
+      "bytes": 3914,
+      "sha256": "A7FEF57B81FF93B66D09B55D6518B187A34C992D0B49D5039F18AE04DD333CF8"
     },
     {
       "path": "DEPENDENCY_VULNERABILITIES.md",
-      "bytes": 688,
-      "sha256": "268B211E0E909B7634539BE173B0E49CED057EA06B0CEF1560FBA450E7AC6278"
+      "bytes": 828,
+      "sha256": "762E4F325CB7A71F3AED3EFF56E5F4C3CE089176EF591ED9BBABC44447430737"
     },
     {
       "path": "LICENSE",
@@ -40,18 +45,18 @@
     },
     {
       "path": "PRIVACY.md",
-      "bytes": 2318,
-      "sha256": "4B3E651960F9F6111477DE09F24DE5A76C0FA156B2DE61CE3F343B9D5026443A"
+      "bytes": 2754,
+      "sha256": "E1C0C5C171B05E950A70D847AE6F59A40A87741784CFF3EEBC2AE2B73533EF5D"
     },
     {
       "path": "README.md",
-      "bytes": 4687,
-      "sha256": "560A5CF382C8ADB4C98919A37FCCD73BA22993B254A6B23327FE70E600CE6880"
+      "bytes": 5312,
+      "sha256": "FD5E0E5B6068467E8D164B0E09B390F9E267BCE31E59392B21B26302BFCE1539"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
-      "bytes": 2467,
-      "sha256": "F3807BA8BAA7003807BDCB63399D68A6AFD11A299C03DCF71EE166CC18D7D860"
+      "bytes": 3147,
+      "sha256": "7ED6A1F553DF5921EE6F061D1C04A54DA2C001E9D8C6B5AD80B741BE7870C022"
     },
     {
       "path": "UPGRADING.md",
@@ -60,8 +65,8 @@
     },
     {
       "path": "VERSION",
-      "bytes": 16,
-      "sha256": "C125A0A85FBDB1012DFF84526D877F6F0971A191A80145B4F3E9546FC5BAAC80"
+      "bytes": 6,
+      "sha256": "1F930DD1F133C1F97A94FE3ACB8DB34372CF4C01FFDB2B3FF4CA72F9494121E9"
     },
     {
       "path": "examples/README.md",
@@ -70,23 +75,28 @@
     },
     {
       "path": "scripts/validate_release.py",
-      "bytes": 13670,
-      "sha256": "67E33131E5B925EC2D5C099DDC2D5B590B6373B9E7DDA6A08BF3C42BED8E8302"
+      "bytes": 16096,
+      "sha256": "FB86B4AABF65867CBFD5FA6CE8C8546E383477AAD3CF0802A854ECF378604EFE"
     },
     {
       "path": "video-knowledge/SKILL.md",
-      "bytes": 9265,
-      "sha256": "D74697A32BECA5AA89D1D99FA3C0872711794B941CFF358B28917241A5C8370B"
+      "bytes": 11050,
+      "sha256": "D54353BC2587272C258BF254BEAD2554F7FBB36F6E5673BA77A91648545B729F"
     },
     {
       "path": "video-knowledge/VERSION",
-      "bytes": 16,
-      "sha256": "C125A0A85FBDB1012DFF84526D877F6F0971A191A80145B4F3E9546FC5BAAC80"
+      "bytes": 6,
+      "sha256": "1F930DD1F133C1F97A94FE3ACB8DB34372CF4C01FFDB2B3FF4CA72F9494121E9"
     },
     {
       "path": "video-knowledge/agents/openai.yaml",
       "bytes": 231,
       "sha256": "F7C58040524A8C2D3DA73C719222A24F32139F3C4F181FE324D6EA39EB9F48E1"
+    },
+    {
+      "path": "video-knowledge/references/acquisition-contract.md",
+      "bytes": 4669,
+      "sha256": "172CC5A1FD55515CA49D4D376A5BB5E4BF495CA756296BEAA1241CE166B1BDF8"
     },
     {
       "path": "video-knowledge/references/analysis-modes.md",
@@ -95,13 +105,13 @@
     },
     {
       "path": "video-knowledge/references/evidence-protocol.md",
-      "bytes": 7230,
-      "sha256": "BEDA94C99F2769FC7D5CE454D493197C34F8F5ACF5223D75EFDBED2BF6669FB9"
+      "bytes": 8222,
+      "sha256": "DA755D1F41CAF125F48BA41DBB48FFEC8D8AE0366AF2FC2A203F9ECDBDD42242"
     },
     {
       "path": "video-knowledge/references/install-contract.md",
-      "bytes": 5851,
-      "sha256": "4B1E476B5F8DA0BB645ED7CD205A505FADE9AC6F8D7694E15919FA74E3B4D9E9"
+      "bytes": 7224,
+      "sha256": "694CD700C2ECED8E2A5ABA330BA917304B075192A7EE7A92567AB842AA070DD5"
     },
     {
       "path": "video-knowledge/references/model-manifest.json",
@@ -110,8 +120,28 @@
     },
     {
       "path": "video-knowledge/references/remediation-protocol.md",
-      "bytes": 3862,
-      "sha256": "C596AFCA56FD700C84DEBDB8918805ABD438F5CB731784A2F620AE90980BF7B9"
+      "bytes": 4493,
+      "sha256": "66DFC045F682E100A6214617D8CF959A027BAE62F296F7D57CF3C8D6F10D5EAD"
+    },
+    {
+      "path": "video-knowledge/requirements-acquisition-macos-arm64-py312.lock",
+      "bytes": 542,
+      "sha256": "4D52929B85204B336697265A1C616FE81CC447F7EF637ABDCBD9066AE2A9C2BC"
+    },
+    {
+      "path": "video-knowledge/requirements-acquisition-windows-py312.lock",
+      "bytes": 521,
+      "sha256": "55323D83BF491141CE73F58E3BA7E8D306B2F6128446BC6B94FA3CC590C6D496"
+    },
+    {
+      "path": "video-knowledge/requirements-acquisition.in",
+      "bytes": 203,
+      "sha256": "D1CF513C1A87760659939D659F9E4CB747012A2CD4AFAC26A6C88028EEB9064C"
+    },
+    {
+      "path": "video-knowledge/requirements-runtime-macos-arm64-py312.lock",
+      "bytes": 2859,
+      "sha256": "7AFFDA042BF8E1104527F59AEC91AAB8D0059AF2F0A55022F17F88A56BE99EBA"
     },
     {
       "path": "video-knowledge/requirements-windows-py312.lock",
@@ -124,9 +154,24 @@
       "sha256": "B1CF93FCB94243C6167765DF8A9207D892053F39E9C7F0C6D662C9385E1895BC"
     },
     {
+      "path": "video-knowledge/scripts/acquire.py",
+      "bytes": 18137,
+      "sha256": "CD6AB0916F1F59F73E9DE1D667098218A2FA441BA9B008C8C7E4F1E9F5AF4D00"
+    },
+    {
+      "path": "video-knowledge/scripts/collector_lifecycle.py",
+      "bytes": 12749,
+      "sha256": "3A3E8C7535A07EF5BF2E68A34E6891F1F15A3DD3E789C936653B282A298536DB"
+    },
+    {
       "path": "video-knowledge/scripts/doctor.py",
-      "bytes": 17821,
-      "sha256": "45588799724AB2029DAA40A81C618D424CB13563DA4F6BD13A3DC666F6F6DCCB"
+      "bytes": 19149,
+      "sha256": "C6217BE376AEE7221231BEFE3B0C77AC77231FFF2560D4E17E336AB93C4CC426"
+    },
+    {
+      "path": "video-knowledge/scripts/douyin_adapter.py",
+      "bytes": 36204,
+      "sha256": "52EB5E415BF75CFD92B06EACB8AAA5B1A14F2CD91ABC770A47624BF45A19212F"
     },
     {
       "path": "video-knowledge/scripts/download_model.py",
@@ -140,8 +185,18 @@
     },
     {
       "path": "video-knowledge/scripts/macos_preflight.py",
-      "bytes": 4735,
-      "sha256": "41BE93230FC251DC31F22326237BBC2BA48435AC4D335F75B5560CA04820AB76"
+      "bytes": 12498,
+      "sha256": "1AF66BA495993F28EE38A745FB3215EE924A16891F808B5AC0639976BACF4A0C"
+    },
+    {
+      "path": "video-knowledge/scripts/process_source.py",
+      "bytes": 17998,
+      "sha256": "7E2E32A602D89DFA15A1B1087A06F45F4F6949CDD0A409BF60E09ED19383741C"
+    },
+    {
+      "path": "video-knowledge/scripts/run_acquire.py",
+      "bytes": 6931,
+      "sha256": "A6BF0FEFD29A71BED9F8B220C473FB4F9477B3D8527152ABB0F016E8BB1CFBF5"
     },
     {
       "path": "video-knowledge/scripts/run_transcribe.py",
@@ -155,8 +210,8 @@
     },
     {
       "path": "video-knowledge/scripts/setup.py",
-      "bytes": 91051,
-      "sha256": "D42C515F256F9E4D0F88368AE48E92F043185623FDB6AE076381B0D46C9218EF"
+      "bytes": 112488,
+      "sha256": "B3FC71F1922024050B7BEA597A95CD49A6DDA647F791865A937AA158563A5557"
     },
     {
       "path": "video-knowledge/scripts/transcribe.py",
@@ -164,5 +219,5 @@
       "sha256": "A4DE45B9CC6D7DE5B0060A63662EFDE9FECEE29CBC7293EC4ED6BDC7D2E9A5B7"
     }
   ],
-  "total_bytes": 218409
+  "total_bytes": 362104
 }

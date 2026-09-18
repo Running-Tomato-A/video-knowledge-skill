@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from runtime_config import ENV_PREFIX, find_workspace, resolve_runtime_paths
+from douyin_adapter import DouyinAdapterError, resolve_browser_executable
 
 
 def check(
@@ -362,30 +363,59 @@ def optional_adapters(workspace: Path) -> list[dict[str, Any]]:
             )
         )
 
-    yt_dlp = shutil.which("yt-dlp")
-    if yt_dlp or importlib.util.find_spec("yt_dlp") is not None:
-        items.append(
-            check(
-                "yt_dlp",
-                "yt-dlp",
-                "pass",
-                "Optional generic public-video adapter found.",
-                required=False,
-                path=yt_dlp or "Python module",
-            )
-        )
-    else:
-        items.append(
-            check(
-                "yt_dlp",
-                "yt-dlp",
-                "warning",
-                "Optional generic public-video adapter was not found.",
-                required=False,
-                suggestion="Local video files remain supported without yt-dlp.",
-            )
-        )
     return items
+
+
+def direct_douyin_acquisition_check(data_root: Path) -> dict[str, Any]:
+    acquisition_root = data_root / "acquisition"
+    python = acquisition_root / ("venv/Scripts/python.exe" if os.name == "nt" else "venv/bin/python")
+    if not python.is_file():
+        return check(
+            "direct_douyin",
+            "Direct Douyin acquisition",
+            "warning",
+            "Managed acquisition environment is not installed.",
+            required=False,
+            suggestion="Local videos remain supported; run the acquisition Setup stage for public Douyin links.",
+            path=python,
+        )
+    completed = subprocess.run(
+        [str(python), "-c", "import importlib.metadata as m; print(m.version('playwright'))"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return check(
+            "direct_douyin",
+            "Direct Douyin acquisition",
+            "warning",
+            "Managed acquisition Python exists, but Playwright cannot be imported.",
+            required=False,
+            suggestion="Rerun only the acquisition Setup stage.",
+            path=python,
+        )
+    try:
+        browser, source = resolve_browser_executable()
+    except DouyinAdapterError as exc:
+        return check(
+            "direct_douyin",
+            "Direct Douyin acquisition",
+            "warning",
+            f"Playwright {completed.stdout.strip()} is ready, but no supported browser was found.",
+            required=False,
+            suggestion=exc.supported_fixes[0] if exc.supported_fixes else exc.detail,
+            path=python,
+        )
+    return check(
+        "direct_douyin",
+        "Direct Douyin acquisition",
+        "pass",
+        f"Playwright {completed.stdout.strip()} with system browser ({source}).",
+        required=False,
+        path=browser,
+    )
 
 
 def storage_summary() -> list[dict[str, Any]]:
@@ -472,6 +502,7 @@ def main() -> int:
     )
     checks.append(transcription_check)
     checks.append(model_check(model_dir, quick=args.quick))
+    checks.append(direct_douyin_acquisition_check(runtime_paths["data_root"]["path"]))
     checks.extend(
         [
             directory_check(

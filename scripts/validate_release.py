@@ -82,10 +82,16 @@ def tree_fingerprint(root: Path) -> dict[str, str]:
 def require_files(root: Path, errors: list[str]) -> None:
     required = [
         "README.md", "LICENSE", "PRIVACY.md", "THIRD_PARTY_NOTICES.md",
-        "DEPENDENCY_LICENSES.md", "DEPENDENCY_VULNERABILITIES.md", "VERSION",
+        "DEPENDENCY_LICENSES.md", "ACQUISITION_DEPENDENCY_LICENSES.md",
+        "DEPENDENCY_VULNERABILITIES.md", "VERSION",
         "CHANGELOG.md", "UPGRADING.md", "video-knowledge/SKILL.md",
         "video-knowledge/VERSION", "video-knowledge/requirements-windows-py312.lock",
+        "video-knowledge/requirements-runtime-macos-arm64-py312.lock",
+        "video-knowledge/requirements-acquisition-windows-py312.lock",
+        "video-knowledge/requirements-acquisition-macos-arm64-py312.lock",
         "video-knowledge/scripts/setup.py", "video-knowledge/scripts/run_transcribe.py",
+        "video-knowledge/scripts/run_acquire.py", "video-knowledge/scripts/process_source.py",
+        "video-knowledge/scripts/acquire.py", "video-knowledge/scripts/douyin_adapter.py",
         "video-knowledge/scripts/macos_preflight.py",
     ]
     for relative in required:
@@ -117,8 +123,8 @@ def validate_skill_frontmatter(root: Path, errors: list[str]) -> None:
         errors.append("SKILL.md description is missing or too short")
 
 
-def validate_lock(root: Path, errors: list[str]) -> int:
-    path = root / "video-knowledge" / "requirements-windows-py312.lock"
+def validate_lock(root: Path, errors: list[str], relative: str, expected: int) -> int:
+    path = root / relative
     packages = []
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
@@ -129,10 +135,10 @@ def validate_lock(root: Path, errors: list[str]) -> int:
             continue
         name = line.split("==", 1)[0].lower().replace("_", "-").replace(".", "-")
         packages.append(name)
-    if len(packages) != 25:
-        errors.append(f"expected 25 locked packages, found {len(packages)}")
+    if len(packages) != expected:
+        errors.append(f"expected {expected} locked packages in {relative}, found {len(packages)}")
     if len(packages) != len(set(packages)):
-        errors.append("duplicate package names in lock")
+        errors.append(f"duplicate package names in {relative}")
     return len(packages)
 
 
@@ -231,7 +237,7 @@ def run_setup_contract(root: Path, errors: list[str]) -> dict[str, Any]:
             "--simulate-architecture",
             "arm64",
             "--simulate-python-version",
-            "3.13.13",
+            "3.12.13",
             "--json",
         ],
         cwd=root,
@@ -246,13 +252,50 @@ def run_setup_contract(root: Path, errors: list[str]) -> dict[str, Any]:
     except json.JSONDecodeError:
         mac_payload = {}
         errors.append(f"macOS setup plan did not return JSON: {mac_plan.stderr or mac_plan.stdout}")
-    mac_codes = {item.get("code") for item in mac_payload.get("blockers", [])}
-    if mac_plan.returncode != 2:
+    if mac_plan.returncode != 0:
         errors.append(f"macOS setup plan exit code: {mac_plan.returncode}")
-    if mac_payload.get("status") != "blocked" or mac_payload.get("confirmation_required"):
-        errors.append("unverified macOS plan was not blocked")
-    if {"platform_not_verified", "python_version_not_verified"} - mac_codes:
-        errors.append("macOS plan did not report platform and Python blockers")
+    if mac_payload.get("status") != "confirmation_required" or not mac_payload.get("confirmation_required"):
+        errors.append("verified macOS Apple Silicon plan did not request confirmation")
+    if mac_payload.get("blockers"):
+        errors.append("verified macOS Apple Silicon plan reported blockers")
+
+    intel_mac_plan = subprocess.run(
+        [
+            sys.executable,
+            str(setup),
+            "--plan",
+            "--simulate-empty",
+            "--simulate-platform",
+            "Darwin",
+            "--simulate-architecture",
+            "x86_64",
+            "--simulate-python-version",
+            "3.12.13",
+            "--json",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+        env=environment,
+    )
+    try:
+        intel_mac_payload = json.loads(intel_mac_plan.stdout)
+    except json.JSONDecodeError:
+        intel_mac_payload = {}
+        errors.append(
+            f"Intel macOS setup plan did not return JSON: {intel_mac_plan.stderr or intel_mac_plan.stdout}"
+        )
+    intel_mac_codes = {
+        item.get("code") for item in intel_mac_payload.get("blockers", [])
+    }
+    if intel_mac_plan.returncode != 2:
+        errors.append(f"Intel macOS setup plan exit code: {intel_mac_plan.returncode}")
+    if intel_mac_payload.get("status") != "blocked" or intel_mac_payload.get("confirmation_required"):
+        errors.append("unverified Intel macOS plan was not blocked")
+    if "platform_not_verified" not in intel_mac_codes:
+        errors.append("Intel macOS plan did not report the platform blocker")
 
     windows_python_plan = subprocess.run(
         [
@@ -339,7 +382,18 @@ def main() -> int:
         return 1
     version = validate_versions(root, errors)
     validate_skill_frontmatter(root, errors)
-    package_count = validate_lock(root, errors)
+    package_count = validate_lock(
+        root, errors, "video-knowledge/requirements-windows-py312.lock", 25
+    )
+    acquisition_package_count = validate_lock(
+        root, errors, "video-knowledge/requirements-acquisition-windows-py312.lock", 4
+    )
+    macos_acquisition_package_count = validate_lock(
+        root, errors, "video-knowledge/requirements-acquisition-macos-arm64-py312.lock", 4
+    )
+    macos_runtime_package_count = validate_lock(
+        root, errors, "video-knowledge/requirements-runtime-macos-arm64-py312.lock", 28
+    )
     validate_files(root, errors)
     validate_markdown_links(root, errors)
     validate_manifest(root, version, errors)
@@ -349,6 +403,9 @@ def main() -> int:
         "version": version,
         "files": len(files_below(root)),
         "locked_packages": package_count,
+        "locked_acquisition_packages": acquisition_package_count,
+        "locked_macos_acquisition_packages": macos_acquisition_package_count,
+        "locked_macos_runtime_packages": macos_runtime_package_count,
         **setup,
         "errors": errors,
     }

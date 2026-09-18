@@ -41,6 +41,10 @@ For every statement that can materially change the conclusion, identify both the
 
 ## 4. Select visual evidence
 
+- Use duration-adaptive sparse frames only for the initial visual survey. They help classify the source; they are not the final evidence quota.
+- Classify visuals as **negligible** (static talking head or audio with one unchanged image), **supplementary** (occasional captions or illustrations), or **essential** (screen operations, products, charts, documents, demonstrations, changing slides, or footage used as evidence).
+- Do not infer the final frame count from duration alone. A long static talk may need very few frames, while a short interface tutorial or audio track with many changing source images may need substantially more.
+- When visuals are supplementary or essential, reopen the retained media after transcript review and extract additional frames at the exact claim, transition, screen state, chart, or document timestamp. For audio with changing still images, retain every distinct image that materially changes the argument rather than sampling an arbitrary fixed number.
 - Choose frames because the analysis cites them, not because a fixed interval produced them.
 - Prefer frames showing claims, charts, product interfaces, contracts, event names, speaker identity, or subtitle corrections.
 - Describe only what is visibly present. A frame of a speaker saying an event happened is evidence of the statement, not visual evidence that the event occurred. Do not name or caption it as event footage unless the event is actually visible.
