@@ -35,9 +35,24 @@ Use a short probe before expensive processing when source quality is uncertain. 
 
 For every statement that can materially change the conclusion, identify both the **proposition owner** and the source's **stance** toward it. A person voicing a sentence may be endorsing it, quoting someone else, reporting it, rejecting it, posing it hypothetically, or leaving it unresolved.
 
+Use a risk-triggered audit rather than repeating a heavy stance review over every ordinary sentence. Run `scripts/stance_windows.py` on the timestamped transcript, then inspect a candidate only when it could change a conclusion. Reported speech, conditionals, negation, contrast, rhetorical questions, and sarcasm are scope-sensitive even when the transcript itself is accurate.
+
 - Do not infer stance from one ASR segment or one burned-caption frame when the proposition spans adjacent segments. Expand backward through the attribution cue and forward through the response or resolution until the grammatical and argumentative scope is complete.
-- Treat reported speech, conditionals, negation, contrast, rhetorical questions, and sarcasm as scope-sensitive. If the complete local context still does not resolve the stance, label it `stance unresolved` and do not use it as the creator's claim.
-- For a conclusion-changing statement, preserve the stance in the corrected transcript or claim matrix—for example `creator endorses`, `creator rejects`, `quoted third-party view`, or `hypothetical`—rather than recording only the words spoken.
+- For each conclusion-changing candidate, assign an immutable proposition ID and record a ledger row with: complete timestamp window, surface proposition, proposition owner, grammatical scope cue, creator stance (`endorses`, `rejects`, `reports`, `hypothetical`, or `unresolved`), modality／speech act, resolution confidence, and transcript／frame evidence.
+- Treat an embedded proposition as distinct from the creator's stance. For example, in “If someone tells you P, ignore them,” the reported person owns P and the creator rejects P.
+- When burned-in captions distribute the scope across multiple screen states, retain consecutive frames for the attribution cue, proposition body, and response／resolution. A visually clear middle fragment is not enough.
+- If the complete local context still does not resolve the stance, label it `stance unresolved` and do not use it as the creator's claim, project conflict, or recommendation premise.
+- Preserve the resolved stance in the corrected transcript index and claim matrix rather than recording only the words spoken.
+
+### Proposition identity and modality gate
+
+Stance can be correct while a later summary still changes the claim. Preserve proposition identity and modal strength when moving from transcript windows into chapter summaries, claim matrices, and recommendations.
+
+- Similar topic words do not make two propositions identical. Keep separate IDs when scope, owner, stance, time window, or speech act differs.
+- A creator may reject `P as a prerequisite` while endorsing `a related practice as useful`. Do not merge these into “the creator requires P.”
+- Preserve a practical modality ladder: observation／self-report → possibility → suggestion／preference → recommendation → necessity／universal rule → exclusion／qualification. A downstream summary must not move upward without explicit source language and scope.
+- Every claim-matrix row must cite its supporting proposition ID or IDs. When several IDs are synthesized, retain disagreements and qualifications; use wording no stronger than the weakest support needed for the combined claim.
+- Run an entailment-style check before delivery: ask whether the exact claim wording would still be true if each cited source window were read in full. If not, split or weaken the claim.
 
 ## 4. Select visual evidence
 
@@ -97,6 +112,8 @@ For judgment, use these statuses when helpful:
 `analysis.md` should be the useful decision document, not a transcript rewrite. Aim for a 3–5 minute read unless the user requests otherwise.
 
 `analysis-完整底稿.md` should contain the evidence matrix, timestamps, cited frames, external sources, assumptions, uncertainty, and workflow notes needed for audit or follow-up.
+
+Before delivery, compare conclusion-changing proposition IDs, owners, stance labels, and modalities across the transcript index, proposition ledger, claim matrix, `analysis-完整底稿.md`, `analysis.md`, and `one_line_conclusion`. A fluent report with a cross-file mismatch—or a summary stronger than its cited proposition—is incomplete.
 
 ## 8. Failure behavior
 
