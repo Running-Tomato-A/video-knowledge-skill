@@ -12,6 +12,12 @@ Video Knowledge 是一套面向 Codex 的本地视频处理 Skill。它先在本
 
 分析完成后，可以围绕同一份视频资产继续澄清、质疑、扩展或连接其他知识，不需要重新下载和转写。
 
+## 视觉演示
+
+[![Video Knowledge：从视频链接到可核查 Markdown 的 20 秒流程演示](https://github.com/Running-Tomato-A/video-knowledge-skill/releases/download/v0.2.1/video-knowledge-demo-v1-20s.gif)](https://github.com/Running-Tomato-A/video-knowledge-skill/releases/download/v0.2.1/video-knowledge-demo-v1-45s.mp4)
+
+GIF 展示普通使用流程：提供一条视频和真实目的，本地完成媒体保存、完整转写与证据画面，再生成精简主文和完整证据底稿。点击 GIF 可打开 45 秒完整演示；后半段用一个自包含案例说明“视频能证明作者说过，不等于平台事实已经成立”。
+
 ## 它不是什么
 
 - 不是自动寻找爆款的工具；
@@ -26,9 +32,10 @@ Video Knowledge 是一套面向 Codex 的本地视频处理 Skill。它先在本
 | Windows x64 + Python 3.12 + CPU int8 | 已完成干净环境、单命令安装与抖音直链验证 |
 | macOS Apple Silicon + Python 3.12 + CPU int8 | 已完成六阶段安装、故障续跑、重复复用与真实链接验证 |
 | 本地视频探测、抽帧、转写和 Markdown 输出 | 已验证 |
+| 结论性命题的归属、立场、命题身份与模态强度审计 | 已完成真实错误回归与独立前向测试 |
 | 一次确认后的完整安装与失败续跑 | 已验证 |
 | 单条公开抖音链接匿名保存 | Windows x64 与 macOS Apple Silicon 已验证 |
-| 其他公共视频链接获取 | 0.2.0 未内置通用下载器；可先提供本地视频或使用另行验证的适配器 |
+| 其他公共视频链接获取 | 0.2.1 未内置通用下载器；可先提供本地视频或使用另行验证的适配器 |
 | Intel Mac、Windows ARM、Python 3.13+ | 尚未验证；安装计划会明确阻止 Apply |
 | 自动说话人分离 | 尚未实现；多人内容使用保守的上下文校正 |
 
