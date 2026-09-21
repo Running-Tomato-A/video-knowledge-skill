@@ -505,6 +505,7 @@ def build_actions(
     simulated: bool,
     target_system: str,
     skill_target: Path | None = None,
+    skill_source: Path | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     checks = check_by_id(report)
     actions: list[dict[str, Any]] = []
@@ -587,15 +588,25 @@ def build_actions(
         if simulated or not Path(raw_path).is_dir():
             actions.append(action("create_directory", f"创建{label}：{raw_path}"))
 
-    installed = False if simulated else (
-        (skill_target / "SKILL.md").is_file()
-        if skill_target is not None
-        else any(path.is_file() for path in skill_candidates())
-    )
-    if installed:
-        reuse.append("已安装的 Video Knowledge Skill")
-    else:
+    resolved_skill_target = skill_target or default_skill_target()
+    resolved_skill_source = skill_source or Path(__file__).resolve().parent.parent
+    installed = False if simulated else (resolved_skill_target / "SKILL.md").is_file()
+    if not installed:
         actions.append(action("install_skill", "安装 Video Knowledge Skill"))
+    else:
+        source_manifest = skill_manifest(resolved_skill_source)
+        target_manifest = skill_manifest(resolved_skill_target)
+        if source_manifest["fingerprint"] == target_manifest["fingerprint"]:
+            reuse.append("已安装的 Video Knowledge Skill")
+        else:
+            source_version = skill_version(resolved_skill_source)
+            target_version = skill_version(resolved_skill_target)
+            actions.append(
+                action(
+                    "update_skill",
+                    f"更新 Video Knowledge Skill：{target_version} → {source_version}",
+                )
+            )
 
     return actions, reuse
 
@@ -652,6 +663,11 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
             Path(args.skill_target).expanduser().resolve()
             if args.skill_target
             else None
+        ),
+        skill_source=(
+            Path(args.skill_source).expanduser().resolve()
+            if args.skill_source
+            else Path(__file__).resolve().parent.parent
         ),
     )
     blockers = installation_blockers(
