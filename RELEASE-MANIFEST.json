@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generator": "video-knowledge-release-candidate-v1",
-  "release_version": "0.2.0",
+  "release_version": "0.2.1",
   "files": [
     {
       "path": ".gitattributes",
@@ -25,8 +25,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 4914,
-      "sha256": "624AFD46F0A4FD637DF365649FCA61F8A46411A12B4C95C15E251C14800168BF"
+      "bytes": 8642,
+      "sha256": "AAB0DFAC56A030596D59A7D45F5EE4F1428E48DD47540BDE51D03884BC60C05B"
     },
     {
       "path": "DEPENDENCY_LICENSES.md",
@@ -50,8 +50,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 5312,
-      "sha256": "FD5E0E5B6068467E8D164B0E09B390F9E267BCE31E59392B21B26302BFCE1539"
+      "bytes": 6094,
+      "sha256": "A4582F81B3787116F44728A618F4FC5BFADAF8059D619CBB124D87C1B331FAE5"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -66,7 +66,7 @@
     {
       "path": "VERSION",
       "bytes": 6,
-      "sha256": "1F930DD1F133C1F97A94FE3ACB8DB34372CF4C01FFDB2B3FF4CA72F9494121E9"
+      "sha256": "71015C979CCB0FC8A0BE7CA0AE83046AB045CDC2C8FAA09FB2F0F7E440F9B4A6"
     },
     {
       "path": "examples/README.md",
@@ -80,13 +80,13 @@
     },
     {
       "path": "video-knowledge/SKILL.md",
-      "bytes": 11050,
-      "sha256": "D54353BC2587272C258BF254BEAD2554F7FBB36F6E5673BA77A91648545B729F"
+      "bytes": 12860,
+      "sha256": "E244FA977274E78FD53077361B9DA03AC1A53864A8DA128FA381BCD2589F8423"
     },
     {
       "path": "video-knowledge/VERSION",
       "bytes": 6,
-      "sha256": "1F930DD1F133C1F97A94FE3ACB8DB34372CF4C01FFDB2B3FF4CA72F9494121E9"
+      "sha256": "71015C979CCB0FC8A0BE7CA0AE83046AB045CDC2C8FAA09FB2F0F7E440F9B4A6"
     },
     {
       "path": "video-knowledge/agents/openai.yaml",
@@ -105,8 +105,8 @@
     },
     {
       "path": "video-knowledge/references/evidence-protocol.md",
-      "bytes": 8222,
-      "sha256": "DA755D1F41CAF125F48BA41DBB48FFEC8D8AE0366AF2FC2A203F9ECDBDD42242"
+      "bytes": 10769,
+      "sha256": "67A121D8C76839B487A85FBEC3C722F32F49E81814AF0279B5C38D69F0CDEFBE"
     },
     {
       "path": "video-knowledge/references/install-contract.md",
@@ -210,8 +210,13 @@
     },
     {
       "path": "video-knowledge/scripts/setup.py",
-      "bytes": 112488,
-      "sha256": "B3FC71F1922024050B7BEA597A95CD49A6DDA647F791865A937AA158563A5557"
+      "bytes": 113323,
+      "sha256": "F9E3D23B4A310FD05C794A73B0FE8BDB9FE31BC1281E4CAA7BCB19582C136872"
+    },
+    {
+      "path": "video-knowledge/scripts/stance_windows.py",
+      "bytes": 4743,
+      "sha256": "B2768FFD1A87CF318E820E8BA9D06AC3F99259C773A57695A416C50D9221F495"
     },
     {
       "path": "video-knowledge/scripts/transcribe.py",
@@ -219,5 +224,5 @@
       "sha256": "A4DE45B9CC6D7DE5B0060A63662EFDE9FECEE29CBC7293EC4ED6BDC7D2E9A5B7"
     }
   ],
-  "total_bytes": 362104
+  "total_bytes": 376549
 }
