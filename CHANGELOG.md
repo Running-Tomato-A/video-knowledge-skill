@@ -2,6 +2,20 @@
 
 This project follows Semantic Versioning for public preview releases. The technical Skill identifier remains `video-knowledge`; a future public brand or IP name may change the display layer without changing this identifier.
 
+## 0.2.2 — 2026-09-29
+
+### Fixed
+
+- The isolated acquisition browser now starts with speaker output muted, while captured media streams and the saved video's audio track remain unchanged.
+- Public Douyin metadata now prefers the complete page title and structured author data instead of silently keeping a truncated description or `未知作者`.
+- Full titles remain intact in `source.json` and `source.md`; only filesystem folder names are length-bounded.
+- Metadata completeness, warnings, and field-level sources now propagate through acquisition and source records for later inspection.
+
+### Verified
+
+- The same 292-second public video reported in GitHub issue #2 was acquired in an isolated directory with the correct author, complete title, `metadata_status: complete`, and a valid audio-bearing video file.
+- All 64 deterministic tests passed or skipped only where explicitly platform-gated, and the Skill structure validator passed.
+
 ## 0.2.1 — 2026-09-21
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generator": "video-knowledge-release-candidate-v1",
-  "release_version": "0.2.1",
+  "release_version": "0.2.2",
   "files": [
     {
       "path": ".gitattributes",
@@ -25,8 +25,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 8642,
-      "sha256": "AAB0DFAC56A030596D59A7D45F5EE4F1428E48DD47540BDE51D03884BC60C05B"
+      "bytes": 9588,
+      "sha256": "78DAB7BB33CDADBF439F160E556ABFF3356449E656924AD8DBAC21BD96FDB1AD"
     },
     {
       "path": "DEPENDENCY_LICENSES.md",
@@ -51,7 +51,7 @@
     {
       "path": "README.md",
       "bytes": 6094,
-      "sha256": "A4582F81B3787116F44728A618F4FC5BFADAF8059D619CBB124D87C1B331FAE5"
+      "sha256": "680B98A6C435F3D21FA6E67DE43B50F73B331E65F98433AAF2D1F806B65D1413"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -66,7 +66,7 @@
     {
       "path": "VERSION",
       "bytes": 6,
-      "sha256": "71015C979CCB0FC8A0BE7CA0AE83046AB045CDC2C8FAA09FB2F0F7E440F9B4A6"
+      "sha256": "998F6B887ED7A6EF44E84210D0237B715BED42EA7254F48DC418AFEC0A484103"
     },
     {
       "path": "examples/README.md",
@@ -86,7 +86,7 @@
     {
       "path": "video-knowledge/VERSION",
       "bytes": 6,
-      "sha256": "71015C979CCB0FC8A0BE7CA0AE83046AB045CDC2C8FAA09FB2F0F7E440F9B4A6"
+      "sha256": "998F6B887ED7A6EF44E84210D0237B715BED42EA7254F48DC418AFEC0A484103"
     },
     {
       "path": "video-knowledge/agents/openai.yaml",
@@ -155,8 +155,8 @@
     },
     {
       "path": "video-knowledge/scripts/acquire.py",
-      "bytes": 18137,
-      "sha256": "CD6AB0916F1F59F73E9DE1D667098218A2FA441BA9B008C8C7E4F1E9F5AF4D00"
+      "bytes": 18326,
+      "sha256": "3E060F36D00CF5E57CFAF69EB58906B6FFD1E572899AF7F6A3F76A8853B6DA7C"
     },
     {
       "path": "video-knowledge/scripts/collector_lifecycle.py",
@@ -170,8 +170,8 @@
     },
     {
       "path": "video-knowledge/scripts/douyin_adapter.py",
-      "bytes": 36204,
-      "sha256": "52EB5E415BF75CFD92B06EACB8AAA5B1A14F2CD91ABC770A47624BF45A19212F"
+      "bytes": 42045,
+      "sha256": "973CE0379687DCE14DA5BC4112CE3196C48086403767539A204A4D8184AFBFF4"
     },
     {
       "path": "video-knowledge/scripts/download_model.py",
@@ -190,8 +190,8 @@
     },
     {
       "path": "video-knowledge/scripts/process_source.py",
-      "bytes": 17998,
-      "sha256": "7E2E32A602D89DFA15A1B1087A06F45F4F6949CDD0A409BF60E09ED19383741C"
+      "bytes": 18319,
+      "sha256": "9926D854EAAB3A48EA63822D571CC2783594A34E3ED5E1F2838BBFF6D4B5E537"
     },
     {
       "path": "video-knowledge/scripts/run_acquire.py",
@@ -224,5 +224,5 @@
       "sha256": "A4DE45B9CC6D7DE5B0060A63662EFDE9FECEE29CBC7293EC4ED6BDC7D2E9A5B7"
     }
   ],
-  "total_bytes": 376549
+  "total_bytes": 383846
 }

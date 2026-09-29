@@ -271,6 +271,9 @@ def direct_douyin_result(
         "acquisition_method": saved.get("acquisition_method") or "anonymous-douyin-direct",
         "title": saved.get("title"),
         "author": saved.get("author"),
+        "metadata_status": saved.get("metadata_status"),
+        "metadata_warnings": saved.get("metadata_warnings") or [],
+        "metadata_sources": saved.get("metadata_sources") or {},
         "work_id": saved.get("work_id"),
         "resolver": saved.get("resolver"),
     }
