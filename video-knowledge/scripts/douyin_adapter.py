@@ -131,6 +131,9 @@ def find_existing_video(download_root: Path, work_id: str) -> dict[str, Any] | N
                     "work_id": work_id,
                     "title": metadata.get("title"),
                     "author": metadata.get("author"),
+                    "metadata_status": metadata.get("metadata_status"),
+                    "metadata_warnings": metadata.get("metadata_warnings") or [],
+                    "metadata_sources": metadata.get("metadata_sources") or {},
                     "media_path": str(video),
                     "metadata_path": str(resolved_metadata),
                     "existing": True,
@@ -217,6 +220,140 @@ def resolve_browser_executable(explicit: str | os.PathLike[str] | None = None) -
             "Set VIDEO_KNOWLEDGE_BROWSER or acquisition.douyin.browser_path.",
         ],
     )
+
+
+def _clean_public_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def _clean_douyin_title(value: Any) -> str:
+    title = _clean_public_text(value)
+    title = re.sub(r"\s+-\s+[^-]+于\d{8}发布在抖音.*$", "", title).strip()
+    if title.endswith(" - 抖音"):
+        title = title[:-5].strip()
+    return title
+
+
+def _detail_author(detail: dict[str, Any] | None) -> str:
+    if not isinstance(detail, dict):
+        return ""
+    for key in ("authorInfo", "author"):
+        value = detail.get(key)
+        if not isinstance(value, dict):
+            continue
+        for field in ("nickname", "nickName", "nick_name", "name"):
+            author = _clean_public_text(value.get(field))
+            if author:
+                return author
+    return ""
+
+
+def _json_ld_author(entries: Any) -> str:
+    if not isinstance(entries, list):
+        return ""
+    for raw in entries:
+        if isinstance(raw, str):
+            try:
+                payload = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+        else:
+            payload = raw
+        if not isinstance(payload, dict):
+            continue
+        author = payload.get("author")
+        if isinstance(author, dict):
+            name = _clean_public_text(author.get("name"))
+            if name:
+                return name
+        items = payload.get("itemListElement")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            try:
+                position = int(item.get("position") or 0)
+            except (TypeError, ValueError):
+                continue
+            if position != 2:
+                continue
+            name = _clean_public_text(item.get("name"))
+            if name:
+                return name
+    return ""
+
+
+def resolve_public_metadata(
+    detail: dict[str, Any] | None,
+    *,
+    page_title: Any = "",
+    description: Any = "",
+    json_ld: Any = None,
+) -> dict[str, Any]:
+    detail = detail if isinstance(detail, dict) else {}
+    title_candidates = (
+        ("detail.desc", detail.get("desc")),
+        ("document.title", page_title),
+        ("meta.description", description),
+    )
+    title = ""
+    title_source = None
+    for source, value in title_candidates:
+        candidate = _clean_douyin_title(value)
+        if candidate:
+            title, title_source = candidate, source
+            break
+
+    author = _detail_author(detail)
+    author_source = "detail.author" if author else None
+    if not author:
+        author = _json_ld_author(json_ld)
+        author_source = "json_ld" if author else None
+    published_match = re.search(r"\s+-\s+(.+?)于(\d{8})发布在抖音", _clean_public_text(description))
+    if not author and published_match:
+        author = _clean_public_text(published_match.group(1))
+        author_source = "meta.description" if author else None
+
+    create_time = detail.get("createTime") or detail.get("create_time")
+    create_time_source = "detail.create_time" if create_time else None
+    if not create_time and published_match:
+        create_time = int(datetime.strptime(published_match.group(2), "%Y%m%d").timestamp())
+        create_time_source = "meta.description"
+
+    warnings = []
+    if not title:
+        warnings.append("public_title_missing")
+    if not author:
+        warnings.append("public_author_missing")
+    return {
+        "title": title or "未命名作品",
+        "author": author or "未知作者",
+        "create_time": create_time,
+        "metadata_status": "complete" if not warnings else "partial",
+        "metadata_warnings": warnings,
+        "metadata_sources": {
+            "title": title_source,
+            "author": author_source,
+            "create_time": create_time_source,
+        },
+    }
+
+
+def chromium_launch_args() -> list[str]:
+    """Return launch flags for the isolated acquisition browser."""
+    args = [
+        "--disable-gpu",
+        "--disable-blink-features=AutomationControlled",
+        "--window-size=1365,768",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--autoplay-policy=no-user-gesture-required",
+        "--mute-audio",
+    ]
+    if os.name == "nt":
+        args.append("--window-position=-32000,-32000")
+    return args
 
 
 def safe_fragment(value: Any, fallback: str, limit: int) -> str:
@@ -443,20 +580,10 @@ def resolve_public_douyin(
 
     try:
         with sync_playwright() as playwright:
-            launch_args = [
-                "--disable-gpu",
-                "--disable-blink-features=AutomationControlled",
-                "--window-size=1365,768",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--autoplay-policy=no-user-gesture-required",
-            ]
-            if os.name == "nt":
-                launch_args.append("--window-position=-32000,-32000")
             browser = playwright.chromium.launch(
                 executable_path=str(executable_path),
                 headless=False,
-                args=launch_args,
+                args=chromium_launch_args(),
             )
             try:
                 context = browser.new_context(
@@ -494,27 +621,30 @@ def resolve_public_douyin(
                     detail: dict[str, Any] | None = None
                     gallery: list[dict[str, Any]] = []
                     for _ in range(18):
-                        detail = _detail_from_pace(page.evaluate("self.__pace_f || []"), work_id)
-                        gallery = _gallery_from_detail(detail or {})
-                        if gallery:
+                        candidate = _detail_from_pace(page.evaluate("self.__pace_f || []"), work_id)
+                        if candidate:
+                            detail = candidate
+                            gallery = _gallery_from_detail(detail)
                             break
                         page.wait_for_timeout(1_000)
 
-                    description = page.evaluate(
-                        "document.querySelector('meta[name=description]')?.content || ''"
+                    page_metadata = page.evaluate(
+                        """() => ({
+                          title: document.title || '',
+                          description: document.querySelector('meta[name=description]')?.content || '',
+                          jsonLd: [...document.querySelectorAll('script[type="application/ld+json"]')]
+                            .map(node => node.textContent || '').filter(Boolean).slice(0, 10)
+                        })"""
                     )
-                    title = (detail or {}).get("desc") or description or page.title()
-                    title = re.sub(r"\s+-\s+[^-]+于\d{8}发布在抖音.*$", "", str(title)).strip()
-                    if title.endswith(" - 抖音"):
-                        title = title[:-5].strip()
-                    author = "未知作者"
-                    detail_author = (detail or {}).get("authorInfo")
-                    if isinstance(detail_author, dict) and detail_author.get("nickname"):
-                        author = str(detail_author["nickname"]).strip()
-                    published_match = re.search(r"于(\d{8})发布在抖音", str(description))
-                    create_time = (detail or {}).get("createTime")
-                    if not create_time and published_match:
-                        create_time = int(datetime.strptime(published_match.group(1), "%Y%m%d").timestamp())
+                    public_metadata = resolve_public_metadata(
+                        detail,
+                        page_title=page_metadata.get("title"),
+                        description=page_metadata.get("description"),
+                        json_ld=page_metadata.get("jsonLd"),
+                    )
+                    title = public_metadata["title"]
+                    author = public_metadata["author"]
+                    create_time = public_metadata["create_time"]
                     cookies = {item["name"]: item["value"] for item in context.cookies()}
                     common_headers = {
                         "Accept": "*/*",
@@ -531,6 +661,9 @@ def resolve_public_douyin(
                             "title": title or f"抖音图集 {work_id}",
                             "author": author,
                             "create_time": create_time,
+                            "metadata_status": public_metadata["metadata_status"],
+                            "metadata_warnings": public_metadata["metadata_warnings"],
+                            "metadata_sources": public_metadata["metadata_sources"],
                             "resolver": "anonymous_chromium_page_data",
                             "browser_source": browser_source,
                         }
@@ -593,6 +726,9 @@ def resolve_public_douyin(
                         "title": title or f"抖音作品 {work_id}",
                         "author": author,
                         "create_time": create_time,
+                        "metadata_status": public_metadata["metadata_status"],
+                        "metadata_warnings": public_metadata["metadata_warnings"],
+                        "metadata_sources": public_metadata["metadata_sources"],
                         "video_url": selected["url"],
                         "headers": headers or common_headers,
                         "cookies": cookies,
@@ -771,8 +907,24 @@ def save_resolved_video(
         existing["acquisition_method"] = "anonymous-douyin-direct-existing"
         return existing
 
-    author = safe_fragment(resolved.get("author"), "未知作者", 32)
-    title = safe_fragment(resolved.get("title"), "未命名作品", 64)
+    author = _clean_public_text(resolved.get("author")) or "未知作者"
+    title = _clean_public_text(resolved.get("title")) or "未命名作品"
+    metadata_warnings = [
+        str(item) for item in resolved.get("metadata_warnings") or [] if str(item).strip()
+    ]
+    if not resolved.get("metadata_status"):
+        if author == "未知作者" and "public_author_missing" not in metadata_warnings:
+            metadata_warnings.append("public_author_missing")
+        if title == "未命名作品" and "public_title_missing" not in metadata_warnings:
+            metadata_warnings.append("public_title_missing")
+    metadata_status = str(
+        resolved.get("metadata_status") or ("complete" if not metadata_warnings else "partial")
+    )
+    metadata_sources = (
+        dict(resolved.get("metadata_sources"))
+        if isinstance(resolved.get("metadata_sources"), dict)
+        else {}
+    )
     source_url = extract_source_url(str(resolved.get("source_url") or ""))
     created = created_date(resolved.get("create_time"))
     work_dir = (root / folder_name(created, author, work_id, title)).resolve()
@@ -789,6 +941,9 @@ def save_resolved_video(
                 "work_id": work_id,
                 "title": title,
                 "author": author,
+                "metadata_status": metadata_status,
+                "metadata_warnings": metadata_warnings,
+                "metadata_sources": metadata_sources,
                 "media_path": str(final_path),
                 "metadata_path": str(metadata_path) if metadata_path.is_file() else None,
                 "existing": True,
@@ -840,6 +995,9 @@ def save_resolved_video(
         "source_url": source_url,
         "author": author,
         "title": title,
+        "metadata_status": metadata_status,
+        "metadata_warnings": metadata_warnings,
+        "metadata_sources": metadata_sources,
         "work_id": work_id,
         "create_date": created,
         "saved_at": datetime.now().isoformat(timespec="seconds"),
@@ -856,6 +1014,9 @@ def save_resolved_video(
         "work_id": work_id,
         "title": title,
         "author": author,
+        "metadata_status": metadata_status,
+        "metadata_warnings": metadata_warnings,
+        "metadata_sources": metadata_sources,
         "media_path": str(final_path),
         "metadata_path": str(metadata_path),
         "existing": False,

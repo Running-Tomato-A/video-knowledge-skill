@@ -101,7 +101,15 @@ def source_metadata(acquisition: dict[str, Any]) -> dict[str, Any]:
         loaded = load_json(Path(raw_path))
         if loaded:
             metadata.update(loaded)
-    for key in ("platform", "source_url", "title", "author"):
+    for key in (
+        "platform",
+        "source_url",
+        "title",
+        "author",
+        "metadata_status",
+        "metadata_warnings",
+        "metadata_sources",
+    ):
         if acquisition.get(key) is not None:
             metadata[key] = acquisition[key]
     metadata.setdefault("platform", acquisition.get("platform"))
@@ -362,6 +370,9 @@ def write_source_markdown(
         "media_path": acquisition.get("media_path"),
         "media_sha256": acquisition.get("sha256"),
         "acquisition_method": acquisition.get("acquisition_method"),
+        "metadata_status": metadata.get("metadata_status"),
+        "metadata_warnings": metadata.get("metadata_warnings") or [],
+        "metadata_sources": metadata.get("metadata_sources") or {},
     }
     frontmatter = ["---"]
     for key, value in fields.items():
